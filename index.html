@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Neon Runner v0.3.1</title>
+    <title>Neon Runner v0.3.2</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -33,13 +33,14 @@
         #lives-container { font-size: 32px; color: #ff3366; text-shadow: 0 0 10px #ff3366; }
         #fps-counter { font-size: 14px; color: yellow; margin-top: 5px; display: none; text-align: right; }
         
-        #version {
+        #damage-overlay {
             position: absolute;
-            bottom: 10px;
-            right: 10px;
-            color: #444;
-            font-size: 12px;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: red;
+            opacity: 0;
             pointer-events: none;
+            transition: opacity 0.1s;
+            z-index: 5;
         }
 
         /* MENUS */
@@ -74,6 +75,13 @@
             text-align: center;
         }
         
+        .version-text {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+        }
+
         .btn {
             margin: 10px;
             padding: 15px 40px;
@@ -131,6 +139,8 @@
 </head>
 <body>
 
+    <div id="damage-overlay"></div>
+
     <!-- HUD -->
     <div id="hud">
         <div class="hud-item">
@@ -145,7 +155,7 @@
     <!-- MAIN MENU -->
     <div id="main-menu" class="overlay">
         <h1>Neon Runner</h1>
-        <p style="color:#aaa; letter-spacing: 2px;">V0.3.1</p>
+        <div class="version-text">v0.3.2</div>
         <button class="btn" onclick="game.start()">Start Run</button>
         <button class="btn" onclick="ui.openSettings()" style="font-size: 16px; padding: 10px 30px; opacity: 0.8">Settings</button>
         
@@ -159,6 +169,7 @@
     <!-- PAUSE MENU -->
     <div id="pause-menu" class="overlay hidden">
         <h1>PAUSED</h1>
+        <div class="version-text">v0.3.2</div>
         <button class="btn" onclick="game.togglePause()">Resume</button>
         <button class="btn" onclick="ui.openSettings()">Settings</button>
         <button class="btn" onclick="ui.toMenu()" style="border-color: #666; color: #ccc;">Quit</button>
@@ -209,19 +220,24 @@
         </div>
     </div>
 
-    <div id="version">Neon Runner v0.3.1 | Three.js r128</div>
-
     <!-- LIB -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
         /**
-         * AUDIO SYSTEM (Restored from v0.3)
+         * AUDIO SYSTEM (Updated to v0.5 spec)
          */
         const audioSys = {
             ctx: null, musicGain: null, sfxGain: null, isPlaying: false,
             currentTrackIdx: 0, noteIdx: 0,
-            tracks: [ [110, 110, 220, 165], [130, 130, 196, 146], [87, 87, 174, 130] ],
+            
+            // Tracks (v0.5 Frequency Arrays)
+            tracks: [
+                [110, 110, 220, 165, 110, 220, 165, 130], // A2 Minor
+                [87, 87, 174, 130, 87, 130, 174, 196],    // F Major
+                [130, 130, 196, 146, 130, 196, 261, 246]  // C Minor
+            ],
+
             init() {
                 try {
                     window.AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -233,49 +249,77 @@
                     this.setMusicVol(30); this.setSfxVol(50);
                 } catch(e) { console.error("Audio Init Failed", e); }
             },
+
             startMusic() {
                 if (!this.ctx) this.init();
                 if (!this.ctx) return;
-                try { this.ctx.resume(); } catch(e){}
+                try { if(this.ctx.state === 'suspended') this.ctx.resume(); } catch(e){}
                 if (this.isPlaying) return;
+
+                // Synth Config (v0.5)
                 const filter = this.ctx.createBiquadFilter();
-                filter.type = 'lowpass'; filter.frequency.value = 800; filter.connect(this.musicGain);
+                filter.type = 'lowpass';
+                filter.frequency.value = 1000;
+                filter.connect(this.musicGain);
+
                 this.noteIdx = 0;
-                this.musicInterval = setInterval(() => this.playNote(filter), 250);
+                this.musicInterval = setInterval(() => this.playNote(filter), 200); // Faster tempo (v0.5)
                 this.isPlaying = true;
             },
+
             playNote(dest) {
                 if (!this.ctx) return;
                 const track = this.tracks[this.currentTrackIdx];
                 const freq = track[this.noteIdx];
                 this.noteIdx = (this.noteIdx + 1) % track.length;
-                if (this.noteIdx === 0 && Math.random() < 0.1) this.currentTrackIdx = (this.currentTrackIdx + 1) % this.tracks.length;
+                
+                // Switch track
+                if (this.noteIdx === 0 && Math.random() < 0.2) {
+                    this.currentTrackIdx = (this.currentTrackIdx + 1) % this.tracks.length;
+                }
+
                 const osc = this.ctx.createOscillator();
-                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                
                 const env = this.ctx.createGain();
-                env.gain.setValueAtTime(0.2, this.ctx.currentTime);
-                env.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
-                osc.connect(env); env.connect(dest); osc.start(); osc.stop(this.ctx.currentTime + 0.2);
+                env.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                env.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.18);
+                
+                osc.connect(env); env.connect(dest);
+                osc.start(); osc.stop(this.ctx.currentTime + 0.2);
             },
+
             stopMusic() { clearInterval(this.musicInterval); this.isPlaying = false; },
+
             playSfx(type) {
                 if (!this.ctx) return;
-                try { this.ctx.resume(); } catch(e){}
+                try { if(this.ctx.state === 'suspended') this.ctx.resume(); } catch(e){}
                 const t = this.ctx.currentTime;
                 const osc = this.ctx.createOscillator();
                 const gain = this.ctx.createGain();
                 osc.connect(gain); gain.connect(this.sfxGain);
+
                 if (type === 'jump') {
-                    osc.type = 'sine'; osc.frequency.setValueAtTime(400, t); osc.frequency.linearRampToValueAtTime(600, t + 0.1);
-                    gain.gain.setValueAtTime(0.3, t); gain.gain.linearRampToValueAtTime(0, t + 0.1);
+                    osc.type = 'square'; // v0.5
+                    osc.frequency.setValueAtTime(150, t);
+                    osc.frequency.linearRampToValueAtTime(300, t + 0.1);
+                    gain.gain.setValueAtTime(0.2, t);
+                    gain.gain.linearRampToValueAtTime(0, t + 0.1);
                     osc.start(t); osc.stop(t + 0.1);
                 } else if (type === 'die') {
-                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, t); osc.frequency.exponentialRampToValueAtTime(50, t + 0.5);
-                    gain.gain.setValueAtTime(0.5, t); gain.gain.linearRampToValueAtTime(0, t + 0.5);
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(100, t);
+                    osc.frequency.exponentialRampToValueAtTime(10, t + 0.5);
+                    gain.gain.setValueAtTime(0.4, t);
+                    gain.gain.linearRampToValueAtTime(0, t + 0.5);
                     osc.start(t); osc.stop(t + 0.5);
                 } else if (type === 'life') {
-                    osc.type = 'sine'; osc.frequency.setValueAtTime(600, t); osc.frequency.setValueAtTime(800, t + 0.1);
-                    gain.gain.setValueAtTime(0.3, t); gain.gain.linearRampToValueAtTime(0, t + 0.3);
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(800, t);
+                    osc.frequency.setValueAtTime(1200, t + 0.1);
+                    gain.gain.setValueAtTime(0.3, t);
+                    gain.gain.linearRampToValueAtTime(0, t + 0.3);
                     osc.start(t); osc.stop(t + 0.3);
                 }
             },
@@ -324,7 +368,6 @@
 
             // Reused Geometry
             geoWall: null,
-            geoGrid: null,
 
             init() {
                 // Scene
@@ -353,17 +396,24 @@
                 this.tunnel = new THREE.Group();
                 this.scene.add(this.tunnel);
 
-                // Player (Classic Box Style)
+                // Player
                 this.player = new THREE.Group();
                 
-                const bodyGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6); // Slightly bigger
+                const bodyGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
                 const bodyMat = new THREE.MeshStandardMaterial({ 
                     color: 0x999999, 
                     roughness: 0.2, 
                     emissive: 0x222222 
                 });
                 const mesh = new THREE.Mesh(bodyGeo, bodyMat);
-                mesh.position.y = 0.3; // Sit on floor
+                
+                // FIX: Raise player mesh so it sits on top of the wall (which has 0.5 thickness).
+                // Wall surface is at -R + 0.25 (inner face).
+                // Player Group is at -R. 
+                // We need mesh bottom to be at -R + 0.25.
+                // Mesh center is 0.3 (half height). 
+                // So Y should be 0.25 + 0.3 = 0.55.
+                mesh.position.y = 0.55; 
                 mesh.castShadow = true;
                 this.player.add(mesh);
 
@@ -377,7 +427,6 @@
                 // Calculate Wall Geometry
                 const wallWidth = 2 * this.tunnelRadius * Math.tan(Math.PI / this.sides);
                 this.geoWall = new THREE.BoxGeometry(wallWidth + 0.1, 0.5, this.segmentLength); 
-                this.geoGrid = new THREE.PlaneGeometry(wallWidth, this.segmentLength);
                 
                 window.addEventListener('resize', () => this.onResize());
                 window.addEventListener('keydown', (e) => this.onKey(e, true));
@@ -430,7 +479,6 @@
                 this.updateCamera(0.016);
             },
             
-            // Returns current visual config based on Score OR Manual Theme
             getCurrentVisuals() {
                 if (this.themeMode === 'DYNAMIC') {
                     for (let i = STAGES.length - 1; i >= 0; i--) {
@@ -445,7 +493,6 @@
             addSegment(z, safe) {
                 const style = this.getCurrentVisuals();
                 
-                // Smoothly transition environment
                 this.scene.background.lerp(new THREE.Color(style.bg), 0.1);
                 this.scene.fog.color.lerp(new THREE.Color(style.bg), 0.1);
                 this.playerLight.color.lerp(new THREE.Color(style.edge), 0.1);
@@ -455,7 +502,8 @@
                 group.position.z = -z;
                 
                 const mat = new THREE.MeshStandardMaterial({ color: style.wall, roughness: 0.5 });
-                const gridMat = new THREE.MeshBasicMaterial({ color: style.edge, wireframe: true, transparent: true, opacity: 0.3 });
+                
+                // NO GRID MESH - Removed "awkward wireframe lines"
 
                 const segData = { z: -z, walls: [] };
                 const theta = (Math.PI * 2) / this.sides;
@@ -479,12 +527,6 @@
                     wall.castShadow = true;
                     wall.receiveShadow = true;
                     
-                    // Visual Grid
-                    const grid = new THREE.Mesh(this.geoGrid, gridMat);
-                    grid.position.set(0, 0.26, 0); 
-                    grid.rotation.x = -Math.PI / 2;
-                    
-                    wall.add(grid);
                     group.add(wall);
                 }
                 
@@ -516,7 +558,8 @@
                     
                     this.score += this.speed * dt;
                     if (this.score - this.lastLifeScore > 1000) {
-                        if(this.lives < 5) { this.lives++; audioSys.playSfx('life'); this.updateHud(); }
+                        // FIX: Cap lives at 3
+                        if(this.lives < 3) { this.lives++; audioSys.playSfx('life'); this.updateHud(); }
                         this.lastLifeScore += 1000;
                     }
 
@@ -596,13 +639,10 @@
 
                 this.player.position.set(this.playerPos.x, -this.tunnelRadius + this.playerPos.y, this.playerPos.z);
                 
-                // Fixed Camera Height: Lowered to -4 (relative to world center) to be closer to floor (-8)
-                // This makes the player visible and enhances speed sensation
+                // Camera Position
                 this.camera.position.z = this.playerPos.z + 10;
                 this.camera.position.y = -3; 
                 this.camera.position.x = this.playerPos.x * 0.5;
-                
-                // Look slightly above the floor horizon
                 this.camera.lookAt(0, -5, this.playerPos.z - 20);
             },
 
@@ -610,6 +650,11 @@
                 this.lives--;
                 audioSys.playSfx('die');
                 this.updateHud();
+
+                // Flash screen red
+                const dmg = document.getElementById('damage-overlay');
+                dmg.style.opacity = 0.5;
+                setTimeout(() => dmg.style.opacity = 0, 100);
                 
                 if (this.lives <= 0) {
                     document.getElementById('final-score').innerText = "Distance: " + Math.floor(this.score) + "m";
@@ -618,7 +663,7 @@
                     audioSys.stopMusic();
                 } else {
                     this.velocity.set(0,0,0);
-                    this.playerPos.y = 10; 
+                    this.playerPos.y = 10; // Respawn above
                     this.playerPos.x = 0;
                 }
             },
