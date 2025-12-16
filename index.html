@@ -3,464 +3,682 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Run 3 Clone v0.1</title>
+    <title>Neon Runner v0.3.1</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        body { margin: 0; overflow: hidden; background: #050505; font-family: 'Courier New', Courier, monospace; }
+        :root {
+            --primary: #00ffcc;
+            --bg: #050510;
+            --panel: rgba(10, 20, 30, 0.95);
+        }
+        body { margin: 0; overflow: hidden; background: black; font-family: 'Orbitron', sans-serif; user-select: none; }
         canvas { display: block; }
-        #ui {
+        
+        /* UI LAYOUT */
+        #hud {
             position: absolute;
             top: 20px;
             left: 20px;
-            color: #00ffcc;
-            font-size: 24px;
-            font-weight: bold;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
             z-index: 10;
-            text-shadow: 0 0 5px #00ffcc;
+        }
+        .hud-item {
+            text-shadow: 0 0 10px var(--primary);
+            color: white;
+        }
+        #score-container { font-size: 32px; font-weight: 900; color: var(--primary); }
+        #lives-container { font-size: 32px; color: #ff3366; text-shadow: 0 0 10px #ff3366; }
+        #fps-counter { font-size: 14px; color: yellow; margin-top: 5px; display: none; text-align: right; }
+        
+        #version {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            color: #444;
+            font-size: 12px;
             pointer-events: none;
         }
-        #overlay {
+
+        /* MENUS */
+        .overlay {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.85);
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            color: white;
             z-index: 20;
             transition: opacity 0.3s;
+            opacity: 1;
+            pointer-events: auto;
         }
+        .overlay.hidden { 
+            opacity: 0; 
+            pointer-events: none; 
+        }
+        
         h1 { 
-            font-size: 60px; 
-            margin: 0 0 20px 0; 
-            color: #00ffcc; 
+            font-size: 72px; 
+            margin: 0 0 10px 0; 
+            background: linear-gradient(to bottom, #fff, var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
             text-transform: uppercase; 
-            letter-spacing: 5px;
-            text-shadow: 0 0 20px #00ffcc;
+            letter-spacing: 4px;
+            filter: drop-shadow(0 0 20px var(--primary));
+            text-align: center;
         }
-        p { font-size: 18px; color: #aaa; margin: 5px 0; }
+        
         .btn {
-            margin-top: 30px;
+            margin: 10px;
             padding: 15px 40px;
-            font-size: 24px;
-            background: transparent;
-            color: #00ffcc;
-            border: 2px solid #00ffcc;
+            font-size: 20px;
+            background: rgba(0, 255, 204, 0.1);
+            color: var(--primary);
+            border: 2px solid var(--primary);
             cursor: pointer;
-            font-family: inherit;
+            font-family: 'Orbitron', sans-serif;
             text-transform: uppercase;
             transition: all 0.2s;
+            clip-path: polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%);
         }
         .btn:hover {
-            background: #00ffcc;
+            background: var(--primary);
             color: black;
-            box-shadow: 0 0 20px #00ffcc;
+            box-shadow: 0 0 30px var(--primary);
+            transform: scale(1.05);
         }
-        .controls {
+
+        /* SETTINGS MODAL */
+        #settings-modal {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 400px;
+            background: var(--panel);
+            border: 1px solid var(--primary);
+            padding: 30px;
+            z-index: 30;
+            display: none;
+            box-shadow: 0 0 50px rgba(0, 255, 204, 0.2);
+        }
+        #settings-modal h2 { color: var(--primary); margin-top: 0; text-align: center; }
+        .setting-row {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 15px;
+            color: #ddd;
+            font-size: 14px;
+        }
+        input[type=range] { width: 150px; accent-color: var(--primary); }
+        select { background: #000; color: white; border: 1px solid #444; padding: 5px; font-family: inherit; }
+
+        .controls-hint {
             margin-top: 40px;
             display: flex;
-            gap: 20px;
-            font-size: 14px;
-            color: #666;
+            gap: 30px;
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
         }
-        .key {
-            border: 1px solid #444;
-            padding: 5px 10px;
-            border-radius: 4px;
-            color: #fff;
-        }
+        .key { border: 1px solid #666; padding: 4px 8px; color: #fff; margin-right: 5px; }
+
     </style>
-<script type="importmap">
-{
-  "imports": {
-    "@react-three/fiber": "https://esm.sh/@react-three/fiber@^9.4.2",
-    "@google/genai": "https://esm.sh/@google/genai@^1.33.0",
-    "react": "https://esm.sh/react@^19.2.3",
-    "three": "https://esm.sh/three@^0.182.0",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "@react-three/drei": "https://esm.sh/@react-three/drei@^10.7.7",
-    "lucide-react": "https://esm.sh/lucide-react@^0.561.0"
-  }
-}
-</script>
 </head>
 <body>
-    <div id="ui">DISTANCE: <span id="score">0</span></div>
-    
-    <div id="overlay">
-        <h1>Neon Runner</h1>
-        <p>Avoid the holes. Run on walls.</p>
-        <button class="btn" onclick="startGame()">Start Run</button>
-        <div class="controls">
-            <div><span class="key">←</span> <span class="key">→</span> MOVE</div>
-            <div><span class="key">SPACE</span> JUMP</div>
+
+    <!-- HUD -->
+    <div id="hud">
+        <div class="hud-item">
+            <div id="score-container">0m</div>
+        </div>
+        <div class="hud-item">
+            <div id="lives-container">♥♥♥</div>
+            <div id="fps-counter">60 FPS</div>
         </div>
     </div>
 
-    <!-- Load Three.js from CDN -->
+    <!-- MAIN MENU -->
+    <div id="main-menu" class="overlay">
+        <h1>Neon Runner</h1>
+        <p style="color:#aaa; letter-spacing: 2px;">V0.3.1</p>
+        <button class="btn" onclick="game.start()">Start Run</button>
+        <button class="btn" onclick="ui.openSettings()" style="font-size: 16px; padding: 10px 30px; opacity: 0.8">Settings</button>
+        
+        <div class="controls-hint">
+            <div><span class="key">←</span> <span class="key">→</span> Rotate</div>
+            <div><span class="key">Space</span> Jump</div>
+            <div><span class="key">ESC</span> Pause</div>
+        </div>
+    </div>
+
+    <!-- PAUSE MENU -->
+    <div id="pause-menu" class="overlay hidden">
+        <h1>PAUSED</h1>
+        <button class="btn" onclick="game.togglePause()">Resume</button>
+        <button class="btn" onclick="ui.openSettings()">Settings</button>
+        <button class="btn" onclick="ui.toMenu()" style="border-color: #666; color: #ccc;">Quit</button>
+    </div>
+
+    <!-- GAME OVER -->
+    <div id="game-over" class="overlay hidden">
+        <h1 style="color: #ff3366; -webkit-text-fill-color: #ff3366;">CRASHED</h1>
+        <p id="final-score" style="font-size: 24px; color: white; margin-bottom: 30px;">Distance: 1200m</p>
+        <button class="btn" onclick="game.restart()">Retry</button>
+        <button class="btn" onclick="ui.toMenu()" style="border-color: #666; color: #ccc;">Menu</button>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="settings-modal">
+        <h2>SYSTEMS</h2>
+        <div class="setting-row">
+            <span>Music Volume</span>
+            <input type="range" min="0" max="100" value="30" oninput="audioSys.setMusicVol(this.value)">
+        </div>
+        <div class="setting-row">
+            <span>SFX Volume</span>
+            <input type="range" min="0" max="100" value="50" oninput="audioSys.setSfxVol(this.value)">
+        </div>
+        <div class="setting-row">
+            <span>Difficulty</span>
+            <select id="opt-difficulty" onchange="game.setDifficulty(this.value)">
+                <option value="NORMAL">Normal</option>
+                <option value="HARD">Hard</option>
+                <option value="EXTREME">Extreme</option>
+            </select>
+        </div>
+        <div class="setting-row">
+            <span>Theme</span>
+            <select id="opt-theme" onchange="game.setTheme(this.value)">
+                <option value="DYNAMIC">Dynamic (Progressive)</option>
+                <option value="NEON">Neon Cyan</option>
+                <option value="MAGMA">Magma Red</option>
+                <option value="MATRIX">Matrix Green</option>
+            </select>
+        </div>
+        <div class="setting-row">
+            <span>Show FPS</span>
+            <input type="checkbox" onchange="ui.toggleFps(this.checked)">
+        </div>
+        <div style="text-align: center; margin-top: 20px;">
+            <button class="btn" onclick="ui.closeSettings()" style="padding: 10px 20px; font-size: 14px;">Close</button>
+        </div>
+    </div>
+
+    <div id="version">Neon Runner v0.3.1 | Three.js r128</div>
+
+    <!-- LIB -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
-        // --- GAME CONSTANTS ---
-        const TUNNEL_WIDTH = 10;
-        const SEGMENT_LENGTH = 5;
-        const RENDER_DISTANCE = 30; // Number of segments to render
-        const SPEED = 15;
-        const JUMP_FORCE = 18;
-        const GRAVITY = 50;
-        const ROTATION_SPEED = 5;
-
-        // --- GLOBAL VARIABLES ---
-        let scene, camera, renderer;
-        let player, tunnelGroup;
-        let segments = [];
-        let score = 0;
-        let isPlaying = false;
-        let frameId;
-
-        // Physics State
-        let playerPos = new THREE.Vector3(0, -TUNNEL_WIDTH/2 + 0.5, 0); // Local to current face
-        let playerVel = new THREE.Vector3(0, 0, 0);
-        let currentFace = 0; // 0=Bottom, 1=Right, 2=Top, 3=Left
-        let targetWorldRotation = 0;
-        let currentWorldRotation = 0;
-        let distanceTraveled = 0;
-
-        // Input
-        const keys = { left: false, right: false, jump: false };
-
-        // --- INITIALIZATION ---
-        function init() {
-            // Scene Setup
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x050505);
-            scene.fog = new THREE.FogExp2(0x050505, 0.02);
-
-            // Camera
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
-            
-            // Renderer
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.shadowMap.enabled = true;
-            document.body.appendChild(renderer.domElement);
-
-            // Lighting
-            const ambientLight = new THREE.AmbientLight(0x404040);
-            scene.add(ambientLight);
-
-            const light = new THREE.PointLight(0xffffff, 1, 50);
-            light.position.set(0, 5, 5);
-            scene.add(light);
-            // We'll attach a light to the player later
-
-            // World Group (Rotates around Z)
-            tunnelGroup = new THREE.Group();
-            scene.add(tunnelGroup);
-
-            // Player Setup
-            const geometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
-            const material = new THREE.MeshStandardMaterial({ 
-                color: 0x00ffcc, 
-                emissive: 0x004433,
-                roughness: 0.2
-            });
-            player = new THREE.Mesh(geometry, material);
-            
-            // Add a light to the player
-            const playerLight = new THREE.PointLight(0x00ffcc, 1, 20);
-            player.add(playerLight);
-            
-            // We don't add player to tunnelGroup because we handle rotation via camera/world logic
-            // Actually, for simplicity, let's add player to scene and move them manually
-            scene.add(player);
-
-            // Events
-            window.addEventListener('resize', onWindowResize, false);
-            window.addEventListener('keydown', onKeyDown, false);
-            window.addEventListener('keyup', onKeyUp, false);
-
-            // Initial Render
-            renderer.render(scene, camera);
-        }
-
-        function startGame() {
-            document.getElementById('overlay').style.opacity = 0;
-            setTimeout(() => document.getElementById('overlay').style.display = 'none', 300);
-            
-            resetGame();
-            isPlaying = true;
-            animate();
-        }
-
-        function resetGame() {
-            // Reset State
-            playerPos.set(0, -TUNNEL_WIDTH/2 + 0.5, 0);
-            playerVel.set(0, 0, 0);
-            currentFace = 0;
-            targetWorldRotation = 0;
-            currentWorldRotation = 0;
-            distanceTraveled = 0;
-            score = 0;
-            document.getElementById('score').innerText = '0';
-
-            // Clear Tunnel
-            while(tunnelGroup.children.length > 0){ 
-                tunnelGroup.remove(tunnelGroup.children[0]); 
-            }
-            segments = [];
-
-            // Generate Initial Safe Zone
-            for(let i=0; i<10; i++) {
-                createSegment(i * SEGMENT_LENGTH, true);
-            }
-            // Generate some gameplay
-            for(let i=10; i<RENDER_DISTANCE; i++) {
-                createSegment(i * SEGMENT_LENGTH, false);
-            }
-        }
-
-        // --- LEVEL GENERATION ---
-        function createSegment(zPos, safe) {
-            // A segment is a slice of the tunnel.
-            // We create 4 walls.
-            // 0: Bottom (y = -R)
-            // 1: Right (x = R)
-            // 2: Top (y = R)
-            // 3: Left (x = -R)
-            
-            const R = TUNNEL_WIDTH / 2;
-            const geo = new THREE.BoxGeometry(TUNNEL_WIDTH, 0.5, SEGMENT_LENGTH);
-            const mat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-            const edgeMat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true });
-
-            const group = new THREE.Group();
-            group.position.z = -zPos; // Move into the screen (negative Z)
-
-            // Data structure to hold tile info for collision
-            const segmentData = {
-                z: -zPos,
-                walls: [true, true, true, true] // B, R, T, L
-            };
-
-            for (let i = 0; i < 4; i++) {
-                // Randomly remove tiles if not safe zone
-                // Chance of hole increases with distance?
-                // Simple logic: 20% chance of hole per face, but never floor on start
-                let isHole = false;
-                if (!safe && Math.random() < 0.2) {
-                    isHole = true;
+        /**
+         * AUDIO SYSTEM (Restored from v0.3)
+         */
+        const audioSys = {
+            ctx: null, musicGain: null, sfxGain: null, isPlaying: false,
+            currentTrackIdx: 0, noteIdx: 0,
+            tracks: [ [110, 110, 220, 165], [130, 130, 196, 146], [87, 87, 174, 130] ],
+            init() {
+                try {
+                    window.AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                    this.musicGain = this.ctx.createGain();
+                    this.sfxGain = this.ctx.createGain();
+                    this.musicGain.connect(this.ctx.destination);
+                    this.sfxGain.connect(this.ctx.destination);
+                    this.setMusicVol(30); this.setSfxVol(50);
+                } catch(e) { console.error("Audio Init Failed", e); }
+            },
+            startMusic() {
+                if (!this.ctx) this.init();
+                if (!this.ctx) return;
+                try { this.ctx.resume(); } catch(e){}
+                if (this.isPlaying) return;
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass'; filter.frequency.value = 800; filter.connect(this.musicGain);
+                this.noteIdx = 0;
+                this.musicInterval = setInterval(() => this.playNote(filter), 250);
+                this.isPlaying = true;
+            },
+            playNote(dest) {
+                if (!this.ctx) return;
+                const track = this.tracks[this.currentTrackIdx];
+                const freq = track[this.noteIdx];
+                this.noteIdx = (this.noteIdx + 1) % track.length;
+                if (this.noteIdx === 0 && Math.random() < 0.1) this.currentTrackIdx = (this.currentTrackIdx + 1) % this.tracks.length;
+                const osc = this.ctx.createOscillator();
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                const env = this.ctx.createGain();
+                env.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                env.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+                osc.connect(env); env.connect(dest); osc.start(); osc.stop(this.ctx.currentTime + 0.2);
+            },
+            stopMusic() { clearInterval(this.musicInterval); this.isPlaying = false; },
+            playSfx(type) {
+                if (!this.ctx) return;
+                try { this.ctx.resume(); } catch(e){}
+                const t = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain); gain.connect(this.sfxGain);
+                if (type === 'jump') {
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(400, t); osc.frequency.linearRampToValueAtTime(600, t + 0.1);
+                    gain.gain.setValueAtTime(0.3, t); gain.gain.linearRampToValueAtTime(0, t + 0.1);
+                    osc.start(t); osc.stop(t + 0.1);
+                } else if (type === 'die') {
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, t); osc.frequency.exponentialRampToValueAtTime(50, t + 0.5);
+                    gain.gain.setValueAtTime(0.5, t); gain.gain.linearRampToValueAtTime(0, t + 0.5);
+                    osc.start(t); osc.stop(t + 0.5);
+                } else if (type === 'life') {
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(600, t); osc.frequency.setValueAtTime(800, t + 0.1);
+                    gain.gain.setValueAtTime(0.3, t); gain.gain.linearRampToValueAtTime(0, t + 0.3);
+                    osc.start(t); osc.stop(t + 0.3);
                 }
-                
-                // Ensure at least 2 faces exist so it's not impossible
-                // (Very basic generation)
-                
-                if (!isHole) {
-                    const wall = new THREE.Mesh(geo, mat);
-                    
-                    // Positioning and Rotating Walls
-                    // i=0 (Bottom): y=-R, rot=0
-                    // i=1 (Right): x=R, rot=90z
-                    // i=2 (Top): y=R, rot=180z
-                    // i=3 (Left): x=-R, rot=-90z
-                    
-                    if (i === 0) {
-                        wall.position.y = -R;
-                    } else if (i === 1) {
-                        wall.position.x = R;
-                        wall.rotation.z = Math.PI / 2;
-                    } else if (i === 2) {
-                        wall.position.y = R;
-                        wall.rotation.z = Math.PI;
-                    } else if (i === 3) {
-                        wall.position.x = -R;
-                        wall.rotation.z = -Math.PI / 2;
-                    }
+            },
+            setMusicVol(v) { if (this.musicGain) this.musicGain.gain.value = v / 100; },
+            setSfxVol(v) { if (this.sfxGain) this.sfxGain.gain.value = v / 100; }
+        };
 
-                    // Add neon edges
-                    const edges = new THREE.LineSegments(
-                        new THREE.EdgesGeometry(geo), 
-                        new THREE.LineBasicMaterial({ color: 0x00aa88, opacity: 0.3, transparent: true })
-                    );
-                    wall.add(edges);
+        /**
+         * STAGE CONFIGURATION
+         */
+        const STAGES = [
+            { score: 0,    wall: 0x111111, edge: 0x00ffcc, bg: 0x050510 }, // Neon Cyan
+            { score: 500,  wall: 0x1a0505, edge: 0xff3366, bg: 0x100505 }, // Magma Red
+            { score: 1000, wall: 0x051a05, edge: 0x33ff33, bg: 0x051005 }, // Matrix Green
+            { score: 1500, wall: 0x111122, edge: 0x3366ff, bg: 0x050515 }, // Deep Blue
+            { score: 2000, wall: 0x222222, edge: 0xffff00, bg: 0x101005 }  // Cyber Yellow
+        ];
 
-                    group.add(wall);
+        /**
+         * GAME ENGINE
+         */
+        const game = {
+            sides: 8,
+            tunnelRadius: 8,
+            segmentLength: 5,
+            renderDist: 24,
+            speed: 20,
+            jumpForce: 15,
+            gravity: 40,
+            
+            scene: null, camera: null, renderer: null,
+            player: null, tunnel: null, playerLight: null,
+            segments: [],
+            lives: 3, score: 0, lastLifeScore: 0,
+            isPlaying: false, isPaused: false,
+            lastTime: 0, frameCount: 0, lastFpsTime: 0,
+            
+            playerPos: new THREE.Vector3(0, 0, 0),
+            velocity: new THREE.Vector3(0, 0, 0),
+            faceIndex: 0, worldRot: 0, targetRot: 0,
+            
+            keys: { left: false, right: false, jump: false },
+            difficulty: 'NORMAL', holeProb: 0.15,
+            themeMode: 'DYNAMIC',
+            fixedTheme: { wall: 0x111111, edge: 0x00ffcc, bg: 0x050510 },
+
+            // Reused Geometry
+            geoWall: null,
+            geoGrid: null,
+
+            init() {
+                // Scene
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(STAGES[0].bg);
+                this.scene.fog = new THREE.Fog(STAGES[0].bg, 10, 100);
+
+                // Camera
+                this.camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 200);
+                
+                // Renderer
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.shadowMap.enabled = true;
+                document.body.appendChild(this.renderer.domElement);
+
+                // Lights
+                const hemiLight = new THREE.HemisphereLight(0xffffff, 0x000000, 0.4);
+                this.scene.add(hemiLight);
+                const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+                dirLight.position.set(20, 50, 20);
+                dirLight.castShadow = true;
+                this.scene.add(dirLight);
+
+                // Tunnel Group
+                this.tunnel = new THREE.Group();
+                this.scene.add(this.tunnel);
+
+                // Player (Classic Box Style)
+                this.player = new THREE.Group();
+                
+                const bodyGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6); // Slightly bigger
+                const bodyMat = new THREE.MeshStandardMaterial({ 
+                    color: 0x999999, 
+                    roughness: 0.2, 
+                    emissive: 0x222222 
+                });
+                const mesh = new THREE.Mesh(bodyGeo, bodyMat);
+                mesh.position.y = 0.3; // Sit on floor
+                mesh.castShadow = true;
+                this.player.add(mesh);
+
+                // Glow
+                this.playerLight = new THREE.PointLight(0x00ffcc, 1.2, 25);
+                this.playerLight.position.set(0, 1.5, 0);
+                this.player.add(this.playerLight);
+
+                this.scene.add(this.player);
+
+                // Calculate Wall Geometry
+                const wallWidth = 2 * this.tunnelRadius * Math.tan(Math.PI / this.sides);
+                this.geoWall = new THREE.BoxGeometry(wallWidth + 0.1, 0.5, this.segmentLength); 
+                this.geoGrid = new THREE.PlaneGeometry(wallWidth, this.segmentLength);
+                
+                window.addEventListener('resize', () => this.onResize());
+                window.addEventListener('keydown', (e) => this.onKey(e, true));
+                window.addEventListener('keyup', (e) => this.onKey(e, false));
+                
+                this.reset(true);
+                this.lastTime = performance.now();
+                requestAnimationFrame((t) => this.loop(t));
+            },
+
+            start() {
+                document.getElementById('main-menu').classList.add('hidden');
+                document.getElementById('game-over').classList.add('hidden');
+                document.getElementById('pause-menu').classList.add('hidden');
+                this.reset(false);
+                this.isPlaying = true;
+                this.isPaused = false;
+                audioSys.startMusic();
+            },
+
+            restart() { this.start(); },
+            
+            togglePause() {
+                if (!this.isPlaying) return;
+                this.isPaused = !this.isPaused;
+                if (this.isPaused) {
+                    document.getElementById('pause-menu').classList.remove('hidden');
+                    audioSys.stopMusic();
                 } else {
-                    segmentData.walls[i] = false;
+                    document.getElementById('pause-menu').classList.add('hidden');
+                    audioSys.startMusic();
+                    this.lastTime = performance.now();
                 }
-            }
+            },
+
+            reset(isMenu) {
+                if(!isMenu) { this.lives = 3; this.score = 0; }
+                this.faceIndex = 0;
+                this.worldRot = 0;
+                this.targetRot = 0;
+                this.playerPos.set(0, 0, 0); 
+                this.velocity.set(0, 0, 0);
+
+                while(this.tunnel.children.length > 0) this.tunnel.remove(this.tunnel.children[0]);
+                this.segments = [];
+
+                for(let i=0; i<10; i++) this.addSegment(i * this.segmentLength, true);
+                
+                this.updateHud();
+                this.updateCamera(0.016);
+            },
             
-            tunnelGroup.add(group);
-            segments.push(segmentData);
-
-            // Cleanup old segments
-            if (segments.length > RENDER_DISTANCE + 5) {
-                const old = segments.shift();
-                // Find the group in scene to remove? 
-                // We'd need a reference. 
-                // For this simple version, we trust ThreeJS not to choke on 50 objects, 
-                // but we should clean up the group children ideally.
-                // Optim: We push to tunnelGroup children array order, so shift removes oldest.
-                if (tunnelGroup.children.length > RENDER_DISTANCE + 5) {
-                    tunnelGroup.remove(tunnelGroup.children[0]);
+            // Returns current visual config based on Score OR Manual Theme
+            getCurrentVisuals() {
+                if (this.themeMode === 'DYNAMIC') {
+                    for (let i = STAGES.length - 1; i >= 0; i--) {
+                        if (this.score >= STAGES[i].score) return STAGES[i];
+                    }
+                    return STAGES[0];
+                } else {
+                    return this.fixedTheme;
                 }
-            }
-        }
+            },
 
-        // --- GAME LOOP ---
-        function animate() {
-            if (!isPlaying) return;
-            frameId = requestAnimationFrame(animate);
+            addSegment(z, safe) {
+                const style = this.getCurrentVisuals();
+                
+                // Smoothly transition environment
+                this.scene.background.lerp(new THREE.Color(style.bg), 0.1);
+                this.scene.fog.color.lerp(new THREE.Color(style.bg), 0.1);
+                this.playerLight.color.lerp(new THREE.Color(style.edge), 0.1);
+                document.documentElement.style.setProperty('--primary', '#' + new THREE.Color(style.edge).getHexString());
 
-            const dt = 0.016; // Fixed step for simplicity
+                const group = new THREE.Group();
+                group.position.z = -z;
+                
+                const mat = new THREE.MeshStandardMaterial({ color: style.wall, roughness: 0.5 });
+                const gridMat = new THREE.MeshBasicMaterial({ color: style.edge, wireframe: true, transparent: true, opacity: 0.3 });
 
-            // 1. Move Player Forward (Z)
-            distanceTraveled += SPEED * dt;
-            playerPos.z = -distanceTraveled;
-            score = Math.floor(distanceTraveled);
-            document.getElementById('score').innerText = score;
+                const segData = { z: -z, walls: [] };
+                const theta = (Math.PI * 2) / this.sides;
 
-            // Generate new segments
-            if (segments.length > 0) {
-                const lastSegZ = -segments[segments.length - 1].z;
-                if (distanceTraveled + (RENDER_DISTANCE * SEGMENT_LENGTH * 0.5) > lastSegZ) {
-                    createSegment(lastSegZ + SEGMENT_LENGTH, false);
-                }
-            }
+                for(let i=0; i<this.sides; i++) {
+                    let isHole = !safe && Math.random() < this.holeProb;
+                    if (isHole) {
+                        segData.walls.push(false);
+                        continue;
+                    }
+                    segData.walls.push(true);
 
-            // 2. Lateral Movement (Local X)
-            if (keys.left) playerPos.x -= 10 * dt;
-            if (keys.right) playerPos.x += 10 * dt;
-
-            // 3. Gravity & Jumping (Local Y)
-            playerVel.y -= GRAVITY * dt;
-            playerPos.y += playerVel.y * dt;
-
-            // Floor/Ceiling Constraints
-            const R = TUNNEL_WIDTH / 2;
-            const playerHeight = 0.4; // Half of player size
-
-            // Collision Detection with Level
-            // Find current segment
-            // z is negative. index = abs(z) / SEG_LEN
-            const segIndex = Math.floor(Math.abs(playerPos.z) / SEGMENT_LENGTH);
-            // Since we shift segments array, we need to map world Z to the array
-            // Let's just iterate or store Z in segment.
-            // Optimization: segments[0] is the oldest. 
-            // We can approximate.
-            
-            let currentSegment = null;
-            // Simple linear search (fast enough for 30 items)
-            for(let s of segments) {
-                if (playerPos.z <= s.z + SEGMENT_LENGTH/2 && playerPos.z >= s.z - SEGMENT_LENGTH/2) {
-                    currentSegment = s;
-                    break;
-                }
-            }
-
-            let onGround = false;
-
-            // Check if there is a floor under the player on the current face
-            if (currentSegment && currentSegment.walls[currentFace]) {
-                // Floor exists
-                if (playerPos.y <= -R + playerHeight) {
-                    playerPos.y = -R + playerHeight;
-                    playerVel.y = 0;
-                    onGround = true;
+                    // Physical Wall
+                    const wall = new THREE.Mesh(this.geoWall, mat);
+                    const angle = i * theta;
                     
-                    if (keys.jump) {
-                        playerVel.y = JUMP_FORCE;
+                    wall.position.x = this.tunnelRadius * Math.sin(angle);
+                    wall.position.y = -this.tunnelRadius * Math.cos(angle);
+                    wall.rotation.z = angle;
+                    
+                    wall.castShadow = true;
+                    wall.receiveShadow = true;
+                    
+                    // Visual Grid
+                    const grid = new THREE.Mesh(this.geoGrid, gridMat);
+                    grid.position.set(0, 0.26, 0); 
+                    grid.rotation.x = -Math.PI / 2;
+                    
+                    wall.add(grid);
+                    group.add(wall);
+                }
+                
+                this.tunnel.add(group);
+                this.segments.push(segData);
+
+                if(this.segments.length > this.renderDist + 5) {
+                    this.segments.shift();
+                    this.tunnel.remove(this.tunnel.children[0]);
+                }
+            },
+
+            loop(time) {
+                requestAnimationFrame((t) => this.loop(t));
+                const dt = Math.min((time - this.lastTime) / 1000, 0.1);
+                this.lastTime = time;
+
+                // FPS Calc
+                this.frameCount++;
+                if (time - this.lastFpsTime >= 1000) {
+                    document.getElementById('fps-counter').innerText = this.frameCount + " FPS";
+                    this.frameCount = 0;
+                    this.lastFpsTime = time;
+                }
+
+                if(this.isPlaying && !this.isPaused) {
+                    this.updatePhysics(dt);
+                    this.updateCamera(dt);
+                    
+                    this.score += this.speed * dt;
+                    if (this.score - this.lastLifeScore > 1000) {
+                        if(this.lives < 5) { this.lives++; audioSys.playSfx('life'); this.updateHud(); }
+                        this.lastLifeScore += 1000;
+                    }
+
+                    document.getElementById('score-container').innerText = Math.floor(this.score) + "m";
+                    
+                    const leadZ = -this.segments[this.segments.length-1].z;
+                    if (this.score + (this.renderDist * this.segmentLength * 0.6) > leadZ) {
+                        this.addSegment(leadZ + this.segmentLength, false);
+                    }
+                } else if (!this.isPlaying) {
+                    this.tunnel.rotation.z += 0.2 * dt;
+                }
+                
+                this.renderer.render(this.scene, this.camera);
+            },
+
+            updatePhysics(dt) {
+                const p = this.playerPos;
+                const v = this.velocity;
+                
+                p.z -= this.speed * dt;
+
+                const moveSpeed = 15;
+                if(this.keys.left) p.x -= moveSpeed * dt;
+                if(this.keys.right) p.x += moveSpeed * dt;
+
+                v.y -= this.gravity * dt;
+                p.y += v.y * dt;
+
+                // Collisions
+                let currentSeg = null;
+                for(let i=0; i<this.segments.length; i++) {
+                    const s = this.segments[i];
+                    if(Math.abs(p.z - s.z) < this.segmentLength/2) {
+                        currentSeg = s;
+                        break;
                     }
                 }
-            } else {
-                // Hole - No floor collision
+
+                const wallWidth = 2 * this.tunnelRadius * Math.tan(Math.PI / this.sides);
+                const halfW = wallWidth / 2;
+                
+                if (p.x > halfW) {
+                    this.rotateWorld(1);
+                    p.x -= wallWidth;
+                } else if (p.x < -halfW) {
+                    this.rotateWorld(-1);
+                    p.x += wallWidth;
+                }
+
+                if (currentSeg) {
+                    const hasFloor = currentSeg.walls[this.faceIndex];
+                    if (hasFloor) {
+                        if (p.y < 0) {
+                            p.y = 0;
+                            v.y = 0;
+                            if (this.keys.jump) {
+                                v.y = this.jumpForce;
+                                audioSys.playSfx('jump');
+                            }
+                        }
+                    }
+                }
+
+                if (p.y < -10) this.handleDeath();
+            },
+
+            rotateWorld(dir) {
+                this.faceIndex = (this.faceIndex + dir + this.sides) % this.sides;
+                const theta = (Math.PI * 2) / this.sides;
+                this.targetRot -= dir * theta; 
+            },
+
+            updateCamera(dt) {
+                this.worldRot += (this.targetRot - this.worldRot) * 8 * dt;
+                this.tunnel.rotation.z = this.worldRot;
+
+                this.player.position.set(this.playerPos.x, -this.tunnelRadius + this.playerPos.y, this.playerPos.z);
+                
+                // Fixed Camera Height: Lowered to -4 (relative to world center) to be closer to floor (-8)
+                // This makes the player visible and enhances speed sensation
+                this.camera.position.z = this.playerPos.z + 10;
+                this.camera.position.y = -3; 
+                this.camera.position.x = this.playerPos.x * 0.5;
+                
+                // Look slightly above the floor horizon
+                this.camera.lookAt(0, -5, this.playerPos.z - 20);
+            },
+
+            handleDeath() {
+                this.lives--;
+                audioSys.playSfx('die');
+                this.updateHud();
+                
+                if (this.lives <= 0) {
+                    document.getElementById('final-score').innerText = "Distance: " + Math.floor(this.score) + "m";
+                    document.getElementById('game-over').classList.remove('hidden');
+                    this.isPlaying = false;
+                    audioSys.stopMusic();
+                } else {
+                    this.velocity.set(0,0,0);
+                    this.playerPos.y = 10; 
+                    this.playerPos.x = 0;
+                }
+            },
+            
+            updateHud() {
+                let hearts = "";
+                for(let i=0; i<this.lives; i++) hearts += "♥";
+                document.getElementById('lives-container').innerText = hearts;
+            },
+
+            setDifficulty(val) {
+                this.difficulty = val;
+                if(val === 'NORMAL') { this.speed = 20; this.holeProb = 0.15; }
+                if(val === 'HARD') { this.speed = 25; this.holeProb = 0.25; }
+                if(val === 'EXTREME') { this.speed = 32; this.holeProb = 0.4; }
+            },
+
+            setTheme(val) {
+                this.themeMode = val;
+                if(val === 'NEON') {
+                    this.fixedTheme = { wall: 0x1a1a1a, edge: 0x00ffcc, bg: 0x050510 };
+                } else if(val === 'MAGMA') {
+                    this.fixedTheme = { wall: 0x221111, edge: 0xff3300, bg: 0x1a0505 };
+                } else if(val === 'MATRIX') {
+                    this.fixedTheme = { wall: 0x001100, edge: 0x00ff00, bg: 0x000500 };
+                }
+            },
+
+            onResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            },
+            
+            onKey(e, down) {
+                if(e.code === 'Escape' && down) this.togglePause();
+                if(e.code === 'ArrowLeft' || e.code === 'KeyA') this.keys.left = down;
+                if(e.code === 'ArrowRight' || e.code === 'KeyD') this.keys.right = down;
+                if(e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+                    if (down && !this.keys.jump) { }
+                    this.keys.jump = down;
+                }
             }
+        };
 
-            // Death Check
-            if (playerPos.y < -R - 5) {
-                gameOver();
-            }
+        const ui = {
+            openSettings() { document.getElementById('settings-modal').style.display = 'block'; },
+            closeSettings() { document.getElementById('settings-modal').style.display = 'none'; },
+            toMenu() { 
+                document.getElementById('game-over').classList.add('hidden');
+                document.getElementById('pause-menu').classList.add('hidden');
+                document.getElementById('main-menu').classList.remove('hidden');
+                game.isPlaying = false;
+                game.reset(true);
+            },
+            toggleFps(val) { document.getElementById('fps-counter').style.display = val ? 'block' : 'none'; }
+        };
 
-            // 4. Rotation Logic (Switching Faces)
-            // If x > R, we move to the Right Face
-            if (playerPos.x > R - playerHeight) {
-                // Transition Right
-                currentFace = (currentFace + 1) % 4;
-                targetWorldRotation -= Math.PI / 2;
-                playerPos.x = -R + playerHeight + 0.1; // Teleport to left side of new face
-            } else if (playerPos.x < -R + playerHeight) {
-                // Transition Left
-                currentFace = (currentFace + 3) % 4; // Wrap backwards
-                targetWorldRotation += Math.PI / 2;
-                playerPos.x = R - playerHeight - 0.1; // Teleport to right side of new face
-            }
-
-            // 5. Update Visuals
-            
-            // Smooth Camera Rotation
-            currentWorldRotation += (targetWorldRotation - currentWorldRotation) * ROTATION_SPEED * dt;
-            
-            // Apply rotation to the WORLD (Tunnel Group)
-            tunnelGroup.rotation.z = currentWorldRotation;
-
-            // Player Position in World Space
-            // We calculate the player's world position based on current face and rotation
-            // Actually, we rotate the tunnel, so the "floor" is always -Y in the world frame?
-            // No, if we rotate the tunnel group, the tunnel geometry moves.
-            // The logic assumes "Local Space" where Floor is always -Y.
-            // So if we rotate the Tunnel to match the logic, the Player can just stay at (localX, localY, worldZ).
-            // BUT, if the tunnel rotates, and the player is NOT in the tunnel group, the player needs to stay still?
-            // Correct.
-            // If the tunnel rotates such that Face 1 becomes the floor (visual bottom), 
-            // then our logical `playerPos` (which assumes Face 1 is floor) maps directly to World (x,y,z).
-            
-            // So:
-            player.position.set(playerPos.x, playerPos.y, playerPos.z);
-            
-            // Camera Follow
-            // Camera sits behind and above player.
-            // Since world rotates to keep player down, camera doesn't need to rotate Z.
-            camera.position.x = playerPos.x * 0.5; // Slight lean
-            camera.position.y = 2;
-            camera.position.z = playerPos.z + 6;
-            camera.lookAt(0, 0, playerPos.z - 10);
-
-            // Update Fog to match player Z
-            scene.fog.color.setHex(0x050505);
-            
-            renderer.render(scene, camera);
-        }
-
-        function gameOver() {
-            isPlaying = false;
-            document.getElementById('overlay').style.display = 'flex';
-            document.getElementById('overlay').style.opacity = 1;
-            document.querySelector('h1').innerText = "GAME OVER";
-            document.querySelector('.btn').innerText = "TRY AGAIN";
-        }
-
-        // --- INPUT HANDLERS ---
-        function onKeyDown(e) {
-            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
-            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
-            if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') keys.jump = true;
-        }
-        function onKeyUp(e) {
-            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
-            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
-            if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') keys.jump = false;
-        }
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        // --- START ---
-        init();
+        game.init();
+        audioSys.init();
 
     </script>
 </body>
