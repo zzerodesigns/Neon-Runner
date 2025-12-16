@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Neon Runner v0.3.5</title>
+    <title>Neon Runner v0.3.8</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary: #00ffcc;
-            --bg: #120520; /* Brighter purple-ish dark bg */
-            --panel: rgba(20, 10, 40, 0.9);
+            --bg: #1a0b2e; /* Significantly brighter purple background */
+            --panel: rgba(30, 15, 50, 0.95);
         }
-        body { margin: 0; overflow: hidden; background: #050010; font-family: 'Orbitron', sans-serif; user-select: none; }
+        body { margin: 0; overflow: hidden; background: #1a0b2e; font-family: 'Orbitron', sans-serif; user-select: none; }
         canvas { display: block; }
         
         /* UI LAYOUT */
@@ -36,7 +36,7 @@
         #damage-overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(rgba(255, 0, 0, 0.3), transparent, rgba(255, 0, 0, 0.3));
+            background: linear-gradient(rgba(255, 0, 50, 0.5), transparent, rgba(255, 0, 50, 0.5));
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.1s;
@@ -48,8 +48,8 @@
         .overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(10, 5, 20, 0.85);
-            backdrop-filter: blur(10px);
+            background: rgba(20, 10, 35, 0.85);
+            backdrop-filter: blur(8px);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -88,7 +88,7 @@
             margin: 12px;
             padding: 18px 50px;
             font-size: 22px;
-            background: rgba(0, 255, 204, 0.15);
+            background: rgba(0, 255, 204, 0.1);
             color: var(--primary);
             border: 2px solid var(--primary);
             cursor: pointer;
@@ -96,7 +96,7 @@
             text-transform: uppercase;
             transition: all 0.2s;
             clip-path: polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%);
-            box-shadow: 0 0 15px rgba(0, 255, 204, 0.1);
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.2);
         }
         .btn:hover {
             background: var(--primary);
@@ -128,7 +128,7 @@
         }
         input[type=range] { width: 180px; accent-color: var(--primary); cursor: pointer; }
         select { 
-            background: #050510; color: white; border: 1px solid #444; 
+            background: #201030; color: white; border: 1px solid #666; 
             padding: 8px; font-family: inherit; font-size: 14px; 
             box-shadow: 0 0 10px rgba(0,0,0,0.5);
         }
@@ -138,7 +138,7 @@
             display: flex;
             gap: 40px;
             font-size: 14px;
-            color: #aaa;
+            color: #ccc;
             text-transform: uppercase;
             text-shadow: 0 0 5px rgba(0,0,0,0.5);
         }
@@ -147,7 +147,7 @@
             padding: 5px 10px; 
             color: #fff; 
             margin-right: 8px; 
-            background: rgba(0, 100, 255, 0.2); 
+            background: rgba(0, 100, 255, 0.3); 
             border-radius: 4px;
         }
 
@@ -171,21 +171,20 @@
     <!-- MAIN MENU -->
     <div id="main-menu" class="overlay">
         <h1>Neon Runner</h1>
-        <div class="version-text">v0.3.5</div>
+        <div class="version-text">v0.3.8</div>
         <button class="btn" onclick="game.start()">Start Run</button>
         <button class="btn" onclick="ui.openSettings()" style="font-size: 16px; padding: 12px 35px; opacity: 0.9">Settings</button>
         
         <div class="controls-hint">
-            <div><span class="key">←</span> <span class="key">→</span> Rotate</div>
+            <div><span class="key">←</span> <span class="key">→</span> Snap Lane</div>
             <div><span class="key">Space</span> Jump</div>
-            <div><span class="key">ESC</span> Pause</div>
         </div>
     </div>
 
     <!-- PAUSE MENU -->
     <div id="pause-menu" class="overlay hidden">
         <h1>PAUSED</h1>
-        <div class="version-text">v0.3.5</div>
+        <div class="version-text">v0.3.8</div>
         <button class="btn" onclick="game.togglePause()">Resume</button>
         <button class="btn" onclick="ui.openSettings()">Settings</button>
         <button class="btn" onclick="ui.toMenu()" style="border-color: #666; color: #ccc;">Quit</button>
@@ -203,12 +202,8 @@
     <div id="settings-modal">
         <h2>SYSTEMS</h2>
         <div class="setting-row">
-            <span>Music Volume</span>
+            <span>Master Volume</span>
             <input type="range" min="0" max="100" value="40" oninput="audioSys.setMusicVol(this.value)">
-        </div>
-        <div class="setting-row">
-            <span>SFX Volume</span>
-            <input type="range" min="0" max="100" value="60" oninput="audioSys.setSfxVol(this.value)">
         </div>
         <div class="setting-row">
             <span>Difficulty</span>
@@ -241,245 +236,168 @@
 
     <script>
         /**
-         * AUDIO SYSTEM - "RETRO BANGER" EDITION
-         * Restores v0.3.3 melodies but keeps v0.3.4 drums and mixing
+         * AUDIO SYSTEM - Provided Version
          */
         const audioSys = {
-            ctx: null, musicGain: null, sfxGain: null, isPlaying: false,
-            tick: 0,
-            
-            // Sequencer State
-            interval: null,
-            tempo: 135, // Slightly faster than v0.3.4 to match original energy
-            currentTrack: 0,
-            noteIndex: 0,
+            ctx: null, masterGain: null, isPlaying: false, step: 0, interval: null,
+            layers: {"base":true,"bass":false,"arp":true,"drums":true}, // Enabled bass layer
+            tracks: [[110,110,220,165,110,220,165,130],[87,87,174,130,87,130,174,196],[130,130,196,146,130,196,261,246]],
+            currentTrackIdx: 0, 
 
-            // THE ORIGINAL v0.3.3 FREQUENCY ARRAYS
-            melodies: [
-                [110, 110, 220, 165, 110, 220, 165, 130], // A2 Minor (The Classic)
-                [87, 87, 174, 130, 87, 130, 174, 196],    // F Major
-                [130, 130, 196, 146, 130, 196, 261, 246]  // C Minor
-            ],
-            
             init() {
                 try {
                     window.AudioContext = window.AudioContext || window.webkitAudioContext;
                     this.ctx = new AudioContext();
-                    this.musicGain = this.ctx.createGain();
-                    this.sfxGain = this.ctx.createGain();
-                    
-                    // Master compressor (from v0.3.4 - keeps it punchy)
-                    const compressor = this.ctx.createDynamicsCompressor();
-                    compressor.threshold.value = -10;
-                    compressor.knee.value = 40;
-                    compressor.ratio.value = 12;
-                    compressor.attack.value = 0;
-                    compressor.release.value = 0.25;
-
-                    this.musicGain.connect(compressor);
-                    this.sfxGain.connect(compressor);
-                    compressor.connect(this.ctx.destination);
-                    
-                    this.setMusicVol(40); 
-                    this.setSfxVol(60);
-                } catch(e) { console.error("Audio Init Failed", e); }
+                    this.masterGain = this.ctx.createGain();
+                    this.masterGain.connect(this.ctx.destination);
+                    this.masterGain.gain.value = 0.4;
+                } catch(e) { console.error(e); }
             },
 
             startMusic() {
                 if (!this.ctx) this.init();
-                if (!this.ctx) return;
-                try { if(this.ctx.state === 'suspended') this.ctx.resume(); } catch(e){}
+                if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
                 if (this.isPlaying) return;
-
-                const stepTime = (60 / this.tempo) / 4; // 16th notes
-                this.tick = 0;
-                this.noteIndex = 0;
-                
-                this.interval = setInterval(() => this.sequencerStep(), stepTime * 1000);
+                this.step = 0;
+                this.interval = setInterval(() => this.tick(), 200); 
                 this.isPlaying = true;
             },
 
-            sequencerStep() {
-                if(!this.ctx) return;
-                const t = this.ctx.currentTime;
-                const step = this.tick % 16;
-                
-                // --- MELODY CORE (Every 2 steps = 8th notes) ---
-                // This logic exactly mimics the old loop, just synchronized to the beat
-                if (step % 2 === 0) {
-                    const melody = this.melodies[this.currentTrack];
-                    const freq = melody[this.noteIndex];
-                    
-                    // 1. The Original Synth Sound (Sawtooth, snappy envelope)
-                    this.playSynth(freq, t, 'sawtooth', 0.2);
-
-                    // 2. LAYERED BANGER ELEMENT: Sub Bass
-                    // Adds weight to the original melody
-                    this.playSynth(freq / 2, t, 'sine', 0.4);
-
-                    this.noteIndex = (this.noteIndex + 1) % 8; // 8 notes per array
-                    
-                    // Randomly switch tracks at end of phrase (Original logic)
-                    if (this.noteIndex === 0 && Math.random() < 0.25) {
-                        this.currentTrack = (this.currentTrack + 1) % this.melodies.length;
-                    }
-                }
-
-                // --- DRUMS (From v0.3.4) ---
-                // Kick: 4/4 on floor
-                if (step % 4 === 0) this.playKick(t);
-                
-                // HiHat: Every odd 16th (Off-beat 16ths)
-                if (step % 2 !== 0) this.playHat(t);
-                
-                // Snare: 5, 13 (Standard Backbeat)
-                if (step === 4 || step === 12) this.playSnare(t);
-
-                this.tick++;
+            stopMusic() { 
+                clearInterval(this.interval); 
+                this.isPlaying = false; 
             },
 
-            playSynth(freq, t, type, vol) {
-                const osc = this.ctx.createOscillator();
-                osc.type = type;
-                osc.frequency.setValueAtTime(freq, t);
+            tick() {
+                if(!this.ctx) return;
+                const t = this.ctx.currentTime;
+                const track = this.tracks[this.currentTrackIdx];
+                const noteIndex = this.step % track.length;
                 
-                const gain = this.ctx.createGain();
-                gain.gain.setValueAtTime(vol, t);
-                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25); // Short snappy decay
-
-                // Lowpass filter for sawtooths so they aren't too harsh
-                if (type === 'sawtooth') {
-                    const filter = this.ctx.createBiquadFilter();
-                    filter.type = 'lowpass';
-                    filter.frequency.setValueAtTime(800, t); // Darker synth wave
-                    filter.frequency.linearRampToValueAtTime(1200, t + 0.1);
-                    osc.connect(filter);
-                    filter.connect(gain);
-                } else {
-                    osc.connect(gain);
+                if (this.layers.base) this.playBaseNote(t, track[noteIndex]);
+                if (this.layers.bass && noteIndex % 4 === 0) this.playBassNote(t, track[0]/2);
+                if (this.layers.arp) this.playArpNote(t, track[noteIndex] * ((this.step%2===0)?1.5:2.0));
+                if (this.layers.drums) {
+                    if (noteIndex % 4 === 0) this.playKick(t);
+                    else if (noteIndex % 4 === 2) this.playSnare(t);
+                    this.playHiHat(t);
                 }
-                
-                gain.connect(this.musicGain);
-                osc.start(t);
-                osc.stop(t + 0.3);
+
+                this.step++;
+                if (noteIndex === track.length - 1 && Math.random() < 0.2) {
+                    this.currentTrackIdx = (this.currentTrackIdx + 1) % this.tracks.length;
+                }
+            },
+
+            playBaseNote(t, freq) {
+                const osc = this.ctx.createOscillator(); osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(freq, t);
+                const filter = this.ctx.createBiquadFilter(); filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(800, t); filter.frequency.linearRampToValueAtTime(1200, t + 0.1);
+                const gain = this.ctx.createGain(); gain.gain.setValueAtTime(0.15, t);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+                osc.connect(filter); filter.connect(gain); gain.connect(this.masterGain);
+                osc.start(t); osc.stop(t + 0.2);
+            },
+
+            playBassNote(t, freq) {
+                const osc = this.ctx.createOscillator(); osc.type = 'square';
+                osc.frequency.setValueAtTime(freq, t);
+                const filter = this.ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 400;
+                const gain = this.ctx.createGain(); gain.gain.setValueAtTime(0.3, t);
+                gain.gain.linearRampToValueAtTime(0, t + 0.6);
+                osc.connect(filter); filter.connect(gain); gain.connect(this.masterGain);
+                osc.start(t); osc.stop(t + 0.6);
+            },
+
+            playArpNote(t, freq) {
+                const osc = this.ctx.createOscillator(); osc.type = 'triangle';
+                osc.frequency.setValueAtTime(freq, t);
+                const gain = this.ctx.createGain(); gain.gain.setValueAtTime(0.05, t);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+                osc.connect(gain); gain.connect(this.masterGain);
+                osc.start(t); osc.stop(t + 0.1);
             },
 
             playKick(t) {
-                const osc = this.ctx.createOscillator();
-                osc.frequency.setValueAtTime(150, t);
-                osc.frequency.exponentialRampToValueAtTime(0.01, t + 0.1);
-                
-                const gain = this.ctx.createGain();
-                gain.gain.setValueAtTime(0.8, t);
-                gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
-
-                osc.connect(gain);
-                gain.connect(this.musicGain);
-                osc.start(t);
-                osc.stop(t + 0.15);
+                const osc = this.ctx.createOscillator(); osc.frequency.setValueAtTime(150, t);
+                osc.frequency.exponentialRampToValueAtTime(0.01, t + 0.5);
+                const gain = this.ctx.createGain(); gain.gain.setValueAtTime(0.5, t);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+                osc.connect(gain); gain.connect(this.masterGain);
+                osc.start(t); osc.stop(t + 0.5);
             },
 
             playSnare(t) {
-                const bufferSize = this.ctx.sampleRate * 0.1;
-                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-                const data = buffer.getChannelData(0);
-                for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1);
-
-                const noise = this.ctx.createBufferSource();
-                noise.buffer = buffer;
-                
-                const filter = this.ctx.createBiquadFilter();
-                filter.type = 'highpass';
-                filter.frequency.value = 1000;
-                
-                const gain = this.ctx.createGain();
-                gain.gain.setValueAtTime(0.3, t);
-                gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
-
-                noise.connect(filter);
-                filter.connect(gain);
-                gain.connect(this.musicGain);
-                noise.start(t);
+                this.playNoise(t, 1000, 0.2, 0.1);
             },
 
-            playHat(t) {
-                const bufferSize = this.ctx.sampleRate * 0.05;
-                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-                const data = buffer.getChannelData(0);
-                for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1);
-
-                const noise = this.ctx.createBufferSource();
-                noise.buffer = buffer;
-                
-                const filter = this.ctx.createBiquadFilter();
-                filter.type = 'highpass';
-                filter.frequency.value = 5000;
-                
-                const gain = this.ctx.createGain();
-                gain.gain.setValueAtTime(0.1, t); // Quiet
-                gain.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
-
-                noise.connect(filter);
-                filter.connect(gain);
-                gain.connect(this.musicGain);
-                noise.start(t);
+            playHiHat(t) {
+                this.playNoise(t, 5000, 0.05, 0.05);
             },
 
-            stopMusic() { clearInterval(this.interval); this.isPlaying = false; },
+            playNoise(t, freqFilter, vol, dur) {
+                const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * dur, this.ctx.sampleRate);
+                const data = buf.getChannelData(0);
+                for(let i=0; i<data.length; i++) data[i] = Math.random() * 2 - 1;
+                const src = this.ctx.createBufferSource(); src.buffer = buf;
+                const filter = this.ctx.createBiquadFilter(); filter.type = 'highpass'; filter.frequency.value = freqFilter;
+                const gain = this.ctx.createGain(); gain.gain.setValueAtTime(vol, t);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+                src.connect(filter); filter.connect(gain); gain.connect(this.masterGain);
+                src.start(t);
+            },
+
+            // Added support for Game Logic interactions
+            setMusicVol(v) { if (this.masterGain) this.masterGain.gain.value = v / 100; },
+            setSfxVol(v) { /* Shared gain in this engine, simplified */ },
 
             playSfx(type) {
-                if (!this.ctx) return;
-                try { if(this.ctx.state === 'suspended') this.ctx.resume(); } catch(e){}
+                if(!this.ctx) return;
                 const t = this.ctx.currentTime;
                 const osc = this.ctx.createOscillator();
                 const gain = this.ctx.createGain();
-                osc.connect(gain); gain.connect(this.sfxGain);
+                osc.connect(gain); gain.connect(this.masterGain);
 
-                if (type === 'jump') {
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(200, t);
-                    osc.frequency.linearRampToValueAtTime(600, t + 0.15);
-                    gain.gain.setValueAtTime(0.3, t);
-                    gain.gain.linearRampToValueAtTime(0, t + 0.15);
-                    osc.start(t); osc.stop(t + 0.2);
-                } else if (type === 'die') {
+                if(type === 'jump') {
+                    osc.frequency.setValueAtTime(300, t);
+                    osc.frequency.linearRampToValueAtTime(500, t + 0.1);
+                    gain.gain.setValueAtTime(0.2, t);
+                    gain.gain.linearRampToValueAtTime(0, t + 0.1);
+                    osc.start(t); osc.stop(t+0.1);
+                } else if(type === 'die') {
                     osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(100, t);
-                    osc.frequency.exponentialRampToValueAtTime(20, t + 0.6);
-                    gain.gain.setValueAtTime(0.5, t);
-                    gain.gain.linearRampToValueAtTime(0, t + 0.6);
-                    osc.start(t); osc.stop(t + 0.6);
-                } else if (type === 'life') {
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(600, t);
-                    osc.frequency.setValueAtTime(1200, t + 0.1);
-                    osc.frequency.setValueAtTime(1800, t + 0.2);
-                    gain.gain.setValueAtTime(0.3, t);
+                    osc.frequency.setValueAtTime(150, t);
+                    osc.frequency.exponentialRampToValueAtTime(50, t + 0.3);
+                    gain.gain.setValueAtTime(0.4, t);
                     gain.gain.linearRampToValueAtTime(0, t + 0.3);
-                    osc.start(t); osc.stop(t + 0.3);
+                    osc.start(t); osc.stop(t+0.3);
+                } else if(type === 'life') {
+                    osc.frequency.setValueAtTime(800, t);
+                    gain.gain.setValueAtTime(0.2, t);
+                    gain.gain.linearRampToValueAtTime(0, t + 0.2);
+                    osc.start(t); osc.stop(t+0.2);
                 }
-            },
-            setMusicVol(v) { if (this.musicGain) this.musicGain.gain.value = v / 100; },
-            setSfxVol(v) { if (this.sfxGain) this.sfxGain.gain.value = v / 100; }
+            }
         };
 
         /**
          * STAGE CONFIGURATION - Brighter, Vibrant Colors
          */
         const STAGES = [
-            { score: 0,    wall: 0x333344, edge: 0x00ffff, bg: 0x120520 }, // Neon Cyan / Deep Purple
-            { score: 500,  wall: 0x442222, edge: 0xff3366, bg: 0x200505 }, // Magma Red
-            { score: 1000, wall: 0x224422, edge: 0x66ff66, bg: 0x052005 }, // Toxic Green
-            { score: 1500, wall: 0x222255, edge: 0x3388ff, bg: 0x050530 }, // Electric Blue
-            { score: 2000, wall: 0x444422, edge: 0xffff00, bg: 0x252505 }  // Solar Yellow
+            { score: 0,    wall: 0xaa22ff, edge: 0x00ffff, bg: 0x1a0b2e }, // Purple/Cyan
+            { score: 500,  wall: 0xff3366, edge: 0xffdd00, bg: 0x2e0b1a }, // Pink/Yellow
+            { score: 1000, wall: 0x22ffaa, edge: 0x0055ff, bg: 0x0b2e1a }, // Lime/Blue
+            { score: 1500, wall: 0x00aaff, edge: 0xff00ff, bg: 0x0b1a2e }, // Blue/Magenta
+            { score: 2000, wall: 0xffaa00, edge: 0x00ffaa, bg: 0x2e1a0b }  // Orange/Cyan
         ];
 
         /**
          * GAME ENGINE
          */
         const game = {
-            sides: 8,
-            tunnelRadius: 8,
+            sides: 16, // 16-Sided Cylinder
+            tunnelRadius: 10,
             segmentLength: 5,
             renderDist: 26,
             speed: 20,
@@ -487,7 +405,7 @@
             gravity: 45,
             
             scene: null, camera: null, renderer: null,
-            player: null, tunnel: null, playerLight: null,
+            player: null, tunnel: null, 
             segments: [],
             lives: 3, score: 0, lastLifeScore: 0,
             isPlaying: false, isPaused: false,
@@ -497,7 +415,7 @@
             velocity: new THREE.Vector3(0, 0, 0),
             faceIndex: 0, worldRot: 0, targetRot: 0,
             
-            keys: { left: false, right: false, jump: false },
+            keys: { jump: false }, // Left/Right removed from poll state, used as triggers
             difficulty: 'NORMAL', holeProb: 0.15,
             themeMode: 'DYNAMIC',
             fixedTheme: STAGES[0],
@@ -508,7 +426,7 @@
             init() {
                 this.scene = new THREE.Scene();
                 this.scene.background = new THREE.Color(STAGES[0].bg);
-                this.scene.fog = new THREE.Fog(STAGES[0].bg, 15, 80); // Color fog for brightness
+                this.scene.fog = new THREE.Fog(STAGES[0].bg, 20, 80); 
 
                 this.camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 200);
                 
@@ -518,12 +436,12 @@
                 this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
                 document.body.appendChild(this.renderer.domElement);
 
-                // --- BRIGHTER LIGHTING SETUP ---
-                const ambient = new THREE.AmbientLight(0xffffff, 0.4);
-                this.scene.add(ambient);
+                // --- BRIGHT LIGHTING ---
+                const hemiLight = new THREE.HemisphereLight(0xffffff, 0x555555, 0.8); 
+                this.scene.add(hemiLight);
 
-                const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-                dirLight.position.set(10, 40, 20);
+                const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+                dirLight.position.set(5, 20, 10);
                 dirLight.castShadow = true;
                 this.scene.add(dirLight);
 
@@ -535,21 +453,14 @@
                 this.player = new THREE.Group();
                 const bodyGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
                 const bodyMat = new THREE.MeshStandardMaterial({ 
-                    color: 0xffffff, 
+                    color: 0x333333, 
                     roughness: 0.2, 
-                    emissive: 0x444444 // Slight glow
+                    emissive: 0x00ffcc,
+                    emissiveIntensity: 0.8 
                 });
                 const mesh = new THREE.Mesh(bodyGeo, bodyMat);
-                // Center the mesh visually around (0,0,0) of the player group
-                // We will handle the "floor offset" in the rendering logic (Polar Calc)
                 mesh.castShadow = true;
                 this.player.add(mesh);
-
-                // Intense Player Light
-                this.playerLight = new THREE.PointLight(0x00ffff, 2.0, 40);
-                this.playerLight.position.set(0, 2, 0);
-                this.player.add(this.playerLight);
-
                 this.scene.add(this.player);
 
                 // Wall Geometry
@@ -626,22 +537,18 @@
                 this.scene.background.lerp(targetBg, 0.05);
                 this.scene.fog.color.lerp(targetBg, 0.05);
                 
-                const targetEdge = new THREE.Color(style.edge);
-                this.playerLight.color.lerp(targetEdge, 0.1);
-                
-                // CSS var update slightly optimized
-                if(Math.random() < 0.1) document.documentElement.style.setProperty('--primary', '#' + targetEdge.getHexString());
+                const hex = '#' + new THREE.Color(style.edge).getHexString();
+                if(Math.random() < 0.1) document.documentElement.style.setProperty('--primary', hex);
 
                 const group = new THREE.Group();
                 group.position.z = -z;
                 
-                // Brighter Walls using Emissive for Neon feel
                 const mat = new THREE.MeshStandardMaterial({ 
                     color: style.wall, 
-                    roughness: 0.6, 
+                    roughness: 0.3, 
                     metalness: 0.1,
                     emissive: style.wall,
-                    emissiveIntensity: 0.2
+                    emissiveIntensity: 0.4
                 });
 
                 const segData = { z: -z, walls: [] };
@@ -678,7 +585,7 @@
 
             loop(time) {
                 requestAnimationFrame((t) => this.loop(t));
-                const dt = Math.min((time - this.lastTime) / 1000, 0.05); // Cap dt
+                const dt = Math.min((time - this.lastTime) / 1000, 0.05); 
                 this.lastTime = time;
 
                 // FPS
@@ -691,7 +598,7 @@
 
                 if(this.isPlaying && !this.isPaused) {
                     this.updatePhysics(dt);
-                    this.renderPlayerPosition(); // NEW: Separate physics vs render logic
+                    this.renderPlayerPosition(); 
                     this.updateCamera(dt);
                     
                     this.score += this.speed * dt;
@@ -718,10 +625,8 @@
                 const v = this.velocity;
                 
                 p.z -= this.speed * dt;
-
-                const moveSpeed = 15;
-                if(this.keys.left) p.x -= moveSpeed * dt;
-                if(this.keys.right) p.x += moveSpeed * dt;
+                
+                // Note: p.x is NO LONGER UPDATED (Snap movement)
 
                 v.y -= this.gravity * dt;
                 p.y += v.y * dt;
@@ -736,23 +641,13 @@
                     }
                 }
 
-                // Wall switching logic
-                const wallWidth = 2 * this.tunnelRadius * Math.tan(Math.PI / this.sides);
-                const halfW = wallWidth / 2;
-                
-                if (p.x > halfW) {
-                    this.rotateWorld(1);
-                    p.x -= wallWidth;
-                } else if (p.x < -halfW) {
-                    this.rotateWorld(-1);
-                    p.x += wallWidth;
-                }
-
-                // Floor collision
+                // STRICT Floor collision logic
                 if (currentSeg) {
                     const hasFloor = currentSeg.walls[this.faceIndex];
                     if (hasFloor) {
-                        if (p.y < 0) {
+                        // Only snap if we are VERY close to surface.
+                        // If we are falling fast or deep (y < -0.1), NO SNAP.
+                        if (p.y < 0 && p.y > -0.5 && v.y <= 0) { 
                             p.y = 0;
                             v.y = 0;
                             if (this.keys.jump) {
@@ -761,51 +656,40 @@
                             }
                         }
                     }
+                    // If !hasFloor, we do nothing. Gravity takes p.y down.
                 }
 
-                // Death Check - Lower threshold significantly
-                if (p.y < -25) this.handleDeath();
+                // Death Check - IMMEDIATE
+                if (p.y < -2.0) this.handleDeath();
             },
 
-            // --- KEY FIX: POLAR COORDINATE RENDERING ---
-            // Decouples the physical "Platformer" X/Y from the Visual 3D World
+            actionRotate(dir) {
+                // Prevent rotation if falling (Strict Death Logic)
+                // If you are in the air due to a jump (y > 0), you can rotate.
+                // If you are falling into a hole (y < 0), you cannot save yourself.
+                if (this.playerPos.y < -0.1) return;
+
+                this.faceIndex = (this.faceIndex + dir + this.sides) % this.sides;
+                const theta = (Math.PI * 2) / this.sides;
+                this.targetRot -= dir * theta;
+            },
+
             renderPlayerPosition() {
                 const theta = (Math.PI * 2) / this.sides;
                 const faceAngle = this.faceIndex * theta;
                 
-                // Start with the face's center orientation (pointing down)
-                // Position vector relative to tunnel center:
-                // Down vector (0, -1) * radius
-                // Plus X offset along tangent (1, 0)
-                // Plus Y offset along normal (0, 1) (jumping/falling)
+                // p.x is always 0 in this snap mode
+                const localX = 0; 
                 
-                // Let's perform the rotation manually to be robust
-                // Base position on Face 0 (Bottom): 
-                // x = playerPos.x
-                // y = -tunnelRadius + playerPos.y + 0.3 (Mesh half height)
+                // Account for thickness
+                const surfaceY = -this.tunnelRadius + 0.25; 
+                const playerCenterY = surfaceY + 0.3 + this.playerPos.y; 
                 
-                const localX = this.playerPos.x;
-                const localY = -this.tunnelRadius + this.playerPos.y + 0.3; // +0.3 to sit on floor surface
-                
-                // Rotate this point by 'faceAngle' around (0,0)
                 const cosA = Math.cos(faceAngle);
                 const sinA = Math.sin(faceAngle);
                 
-                // Standard 2D rotation:
-                // x' = x cos - y sin
-                // y' = x sin + y cos
-                const rotX = localX * cosA - localY * sinA;
-                const rotY = localX * sinA + localY * cosA;
-                
-                // Now apply the global World Rotation (smooth lerp)
-                // This 'worldRot' is the rotation of the tunnel itself
-                // Since the tunnel rotates to keep the player at the bottom, we actually just
-                // place the player at (rotX, rotY) relative to world space, 
-                // BUT we must rotate this point by the tunnel's current rotation?
-                // No, the tunnel object rotates. The player is NOT a child of the tunnel.
-                // The player is in Scene space.
-                // If the tunnel rotates by `worldRot`, the "Floor" moves.
-                // We want the player to stay attached to the floor visually.
+                const rotX = localX * cosA - playerCenterY * sinA;
+                const rotY = localX * sinA + playerCenterY * cosA;
                 
                 const wRot = this.tunnel.rotation.z;
                 const cosW = Math.cos(wRot);
@@ -815,43 +699,26 @@
                 const finalY = rotX * sinW + rotY * cosW;
                 
                 this.player.position.set(finalX, finalY, this.playerPos.z);
-                
-                // Also rotate the mesh itself so it stands "up" relative to the wall
-                // Face Normal Angle = faceAngle.
-                // World rotation adds wRot.
-                // Player should rotate by faceAngle + wRot.
                 this.player.rotation.z = faceAngle + wRot;
             },
 
-            rotateWorld(dir) {
-                this.faceIndex = (this.faceIndex + dir + this.sides) % this.sides;
-                const theta = (Math.PI * 2) / this.sides;
-                this.targetRot -= dir * theta; 
-            },
-
             updateCamera(dt) {
-                // Smooth rotation of tunnel
-                this.worldRot += (this.targetRot - this.worldRot) * 10 * dt;
+                // Faster rotation smoothing for snap feel
+                this.worldRot += (this.targetRot - this.worldRot) * 15 * dt;
                 this.tunnel.rotation.z = this.worldRot;
 
-                // Camera Logic
-                // We want to look at the player, but stay oriented up?
-                // Actually, standard runner cam is fixed up, while world rotates.
-                // Player X should be near 0 if worldRot catches up.
-                
-                const p = this.player.position; // Uses the smoothed render position
+                const p = this.player.position; 
                 
                 this.camera.position.z = p.z + 10;
-                
-                // Smooth follow X/Y
-                // We want to see them fall, so we follow Y but lag behind or clamp
-                const targetCamY = Math.max(-8, p.y + 3); 
-                this.camera.position.y += (targetCamY - this.camera.position.y) * 0.1;
-                
-                // Smooth follow X loosely
-                this.camera.position.x += (p.x * 0.5 - this.camera.position.x) * 0.1;
+                // Follow X tightly for snap feel
+                this.camera.position.x += (p.x * 0.8 - this.camera.position.x) * 0.2;
 
-                this.camera.lookAt(0, p.y - 2, p.z - 20);
+                if (this.playerPos.y > -5) {
+                    const targetCamY = Math.max(-8, p.y + 3); 
+                    this.camera.position.y += (targetCamY - this.camera.position.y) * 0.1;
+                }
+                
+                this.camera.lookAt(0, this.camera.position.y - 2, p.z - 20);
             },
 
             handleDeath() {
@@ -872,9 +739,8 @@
                     this.velocity.set(0,0,0);
                     this.playerPos.y = 15; // Drop from sky
                     this.playerPos.x = 0;
-                    
-                    // Reset rotation alignment to prevent disorientation
                     this.worldRot = this.targetRot; 
+                    this.camera.position.y = 10;
                 }
             },
             
@@ -910,8 +776,13 @@
             
             onKey(e, down) {
                 if(e.code === 'Escape' && down) this.togglePause();
-                if(e.code === 'ArrowLeft' || e.code === 'KeyA') this.keys.left = down;
-                if(e.code === 'ArrowRight' || e.code === 'KeyD') this.keys.right = down;
+                
+                // SNAP LANE MOVEMENT
+                if (down) {
+                    if(e.code === 'ArrowLeft' || e.code === 'KeyA') this.actionRotate(-1);
+                    if(e.code === 'ArrowRight' || e.code === 'KeyD') this.actionRotate(1);
+                }
+
                 if(e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
                     if (down && !this.keys.jump) { }
                     this.keys.jump = down;
