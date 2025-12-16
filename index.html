@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Run 3 Clone v0.1</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #050505; font-family: 'Courier New', Courier, monospace; }
+        canvas { display: block; }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #00ffcc;
+            font-size: 24px;
+            font-weight: bold;
+            z-index: 10;
+            text-shadow: 0 0 5px #00ffcc;
+            pointer-events: none;
+        }
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 20;
+            transition: opacity 0.3s;
+        }
+        h1 { 
+            font-size: 60px; 
+            margin: 0 0 20px 0; 
+            color: #00ffcc; 
+            text-transform: uppercase; 
+            letter-spacing: 5px;
+            text-shadow: 0 0 20px #00ffcc;
+        }
+        p { font-size: 18px; color: #aaa; margin: 5px 0; }
+        .btn {
+            margin-top: 30px;
+            padding: 15px 40px;
+            font-size: 24px;
+            background: transparent;
+            color: #00ffcc;
+            border: 2px solid #00ffcc;
+            cursor: pointer;
+            font-family: inherit;
+            text-transform: uppercase;
+            transition: all 0.2s;
+        }
+        .btn:hover {
+            background: #00ffcc;
+            color: black;
+            box-shadow: 0 0 20px #00ffcc;
+        }
+        .controls {
+            margin-top: 40px;
+            display: flex;
+            gap: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+        .key {
+            border: 1px solid #444;
+            padding: 5px 10px;
+            border-radius: 4px;
+            color: #fff;
+        }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "@react-three/fiber": "https://esm.sh/@react-three/fiber@^9.4.2",
+    "@google/genai": "https://esm.sh/@google/genai@^1.33.0",
+    "react": "https://esm.sh/react@^19.2.3",
+    "three": "https://esm.sh/three@^0.182.0",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "@react-three/drei": "https://esm.sh/@react-three/drei@^10.7.7",
+    "lucide-react": "https://esm.sh/lucide-react@^0.561.0"
+  }
+}
+</script>
+</head>
+<body>
+    <div id="ui">DISTANCE: <span id="score">0</span></div>
+    
+    <div id="overlay">
+        <h1>Neon Runner</h1>
+        <p>Avoid the holes. Run on walls.</p>
+        <button class="btn" onclick="startGame()">Start Run</button>
+        <div class="controls">
+            <div><span class="key">←</span> <span class="key">→</span> MOVE</div>
+            <div><span class="key">SPACE</span> JUMP</div>
+        </div>
+    </div>
+
+    <!-- Load Three.js from CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        // --- GAME CONSTANTS ---
+        const TUNNEL_WIDTH = 10;
+        const SEGMENT_LENGTH = 5;
+        const RENDER_DISTANCE = 30; // Number of segments to render
+        const SPEED = 15;
+        const JUMP_FORCE = 18;
+        const GRAVITY = 50;
+        const ROTATION_SPEED = 5;
+
+        // --- GLOBAL VARIABLES ---
+        let scene, camera, renderer;
+        let player, tunnelGroup;
+        let segments = [];
+        let score = 0;
+        let isPlaying = false;
+        let frameId;
+
+        // Physics State
+        let playerPos = new THREE.Vector3(0, -TUNNEL_WIDTH/2 + 0.5, 0); // Local to current face
+        let playerVel = new THREE.Vector3(0, 0, 0);
+        let currentFace = 0; // 0=Bottom, 1=Right, 2=Top, 3=Left
+        let targetWorldRotation = 0;
+        let currentWorldRotation = 0;
+        let distanceTraveled = 0;
+
+        // Input
+        const keys = { left: false, right: false, jump: false };
+
+        // --- INITIALIZATION ---
+        function init() {
+            // Scene Setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x050505);
+            scene.fog = new THREE.FogExp2(0x050505, 0.02);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040);
+            scene.add(ambientLight);
+
+            const light = new THREE.PointLight(0xffffff, 1, 50);
+            light.position.set(0, 5, 5);
+            scene.add(light);
+            // We'll attach a light to the player later
+
+            // World Group (Rotates around Z)
+            tunnelGroup = new THREE.Group();
+            scene.add(tunnelGroup);
+
+            // Player Setup
+            const geometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+            const material = new THREE.MeshStandardMaterial({ 
+                color: 0x00ffcc, 
+                emissive: 0x004433,
+                roughness: 0.2
+            });
+            player = new THREE.Mesh(geometry, material);
+            
+            // Add a light to the player
+            const playerLight = new THREE.PointLight(0x00ffcc, 1, 20);
+            player.add(playerLight);
+            
+            // We don't add player to tunnelGroup because we handle rotation via camera/world logic
+            // Actually, for simplicity, let's add player to scene and move them manually
+            scene.add(player);
+
+            // Events
+            window.addEventListener('resize', onWindowResize, false);
+            window.addEventListener('keydown', onKeyDown, false);
+            window.addEventListener('keyup', onKeyUp, false);
+
+            // Initial Render
+            renderer.render(scene, camera);
+        }
+
+        function startGame() {
+            document.getElementById('overlay').style.opacity = 0;
+            setTimeout(() => document.getElementById('overlay').style.display = 'none', 300);
+            
+            resetGame();
+            isPlaying = true;
+            animate();
+        }
+
+        function resetGame() {
+            // Reset State
+            playerPos.set(0, -TUNNEL_WIDTH/2 + 0.5, 0);
+            playerVel.set(0, 0, 0);
+            currentFace = 0;
+            targetWorldRotation = 0;
+            currentWorldRotation = 0;
+            distanceTraveled = 0;
+            score = 0;
+            document.getElementById('score').innerText = '0';
+
+            // Clear Tunnel
+            while(tunnelGroup.children.length > 0){ 
+                tunnelGroup.remove(tunnelGroup.children[0]); 
+            }
+            segments = [];
+
+            // Generate Initial Safe Zone
+            for(let i=0; i<10; i++) {
+                createSegment(i * SEGMENT_LENGTH, true);
+            }
+            // Generate some gameplay
+            for(let i=10; i<RENDER_DISTANCE; i++) {
+                createSegment(i * SEGMENT_LENGTH, false);
+            }
+        }
+
+        // --- LEVEL GENERATION ---
+        function createSegment(zPos, safe) {
+            // A segment is a slice of the tunnel.
+            // We create 4 walls.
+            // 0: Bottom (y = -R)
+            // 1: Right (x = R)
+            // 2: Top (y = R)
+            // 3: Left (x = -R)
+            
+            const R = TUNNEL_WIDTH / 2;
+            const geo = new THREE.BoxGeometry(TUNNEL_WIDTH, 0.5, SEGMENT_LENGTH);
+            const mat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+            const edgeMat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true });
+
+            const group = new THREE.Group();
+            group.position.z = -zPos; // Move into the screen (negative Z)
+
+            // Data structure to hold tile info for collision
+            const segmentData = {
+                z: -zPos,
+                walls: [true, true, true, true] // B, R, T, L
+            };
+
+            for (let i = 0; i < 4; i++) {
+                // Randomly remove tiles if not safe zone
+                // Chance of hole increases with distance?
+                // Simple logic: 20% chance of hole per face, but never floor on start
+                let isHole = false;
+                if (!safe && Math.random() < 0.2) {
+                    isHole = true;
+                }
+                
+                // Ensure at least 2 faces exist so it's not impossible
+                // (Very basic generation)
+                
+                if (!isHole) {
+                    const wall = new THREE.Mesh(geo, mat);
+                    
+                    // Positioning and Rotating Walls
+                    // i=0 (Bottom): y=-R, rot=0
+                    // i=1 (Right): x=R, rot=90z
+                    // i=2 (Top): y=R, rot=180z
+                    // i=3 (Left): x=-R, rot=-90z
+                    
+                    if (i === 0) {
+                        wall.position.y = -R;
+                    } else if (i === 1) {
+                        wall.position.x = R;
+                        wall.rotation.z = Math.PI / 2;
+                    } else if (i === 2) {
+                        wall.position.y = R;
+                        wall.rotation.z = Math.PI;
+                    } else if (i === 3) {
+                        wall.position.x = -R;
+                        wall.rotation.z = -Math.PI / 2;
+                    }
+
+                    // Add neon edges
+                    const edges = new THREE.LineSegments(
+                        new THREE.EdgesGeometry(geo), 
+                        new THREE.LineBasicMaterial({ color: 0x00aa88, opacity: 0.3, transparent: true })
+                    );
+                    wall.add(edges);
+
+                    group.add(wall);
+                } else {
+                    segmentData.walls[i] = false;
+                }
+            }
+            
+            tunnelGroup.add(group);
+            segments.push(segmentData);
+
+            // Cleanup old segments
+            if (segments.length > RENDER_DISTANCE + 5) {
+                const old = segments.shift();
+                // Find the group in scene to remove? 
+                // We'd need a reference. 
+                // For this simple version, we trust ThreeJS not to choke on 50 objects, 
+                // but we should clean up the group children ideally.
+                // Optim: We push to tunnelGroup children array order, so shift removes oldest.
+                if (tunnelGroup.children.length > RENDER_DISTANCE + 5) {
+                    tunnelGroup.remove(tunnelGroup.children[0]);
+                }
+            }
+        }
+
+        // --- GAME LOOP ---
+        function animate() {
+            if (!isPlaying) return;
+            frameId = requestAnimationFrame(animate);
+
+            const dt = 0.016; // Fixed step for simplicity
+
+            // 1. Move Player Forward (Z)
+            distanceTraveled += SPEED * dt;
+            playerPos.z = -distanceTraveled;
+            score = Math.floor(distanceTraveled);
+            document.getElementById('score').innerText = score;
+
+            // Generate new segments
+            if (segments.length > 0) {
+                const lastSegZ = -segments[segments.length - 1].z;
+                if (distanceTraveled + (RENDER_DISTANCE * SEGMENT_LENGTH * 0.5) > lastSegZ) {
+                    createSegment(lastSegZ + SEGMENT_LENGTH, false);
+                }
+            }
+
+            // 2. Lateral Movement (Local X)
+            if (keys.left) playerPos.x -= 10 * dt;
+            if (keys.right) playerPos.x += 10 * dt;
+
+            // 3. Gravity & Jumping (Local Y)
+            playerVel.y -= GRAVITY * dt;
+            playerPos.y += playerVel.y * dt;
+
+            // Floor/Ceiling Constraints
+            const R = TUNNEL_WIDTH / 2;
+            const playerHeight = 0.4; // Half of player size
+
+            // Collision Detection with Level
+            // Find current segment
+            // z is negative. index = abs(z) / SEG_LEN
+            const segIndex = Math.floor(Math.abs(playerPos.z) / SEGMENT_LENGTH);
+            // Since we shift segments array, we need to map world Z to the array
+            // Let's just iterate or store Z in segment.
+            // Optimization: segments[0] is the oldest. 
+            // We can approximate.
+            
+            let currentSegment = null;
+            // Simple linear search (fast enough for 30 items)
+            for(let s of segments) {
+                if (playerPos.z <= s.z + SEGMENT_LENGTH/2 && playerPos.z >= s.z - SEGMENT_LENGTH/2) {
+                    currentSegment = s;
+                    break;
+                }
+            }
+
+            let onGround = false;
+
+            // Check if there is a floor under the player on the current face
+            if (currentSegment && currentSegment.walls[currentFace]) {
+                // Floor exists
+                if (playerPos.y <= -R + playerHeight) {
+                    playerPos.y = -R + playerHeight;
+                    playerVel.y = 0;
+                    onGround = true;
+                    
+                    if (keys.jump) {
+                        playerVel.y = JUMP_FORCE;
+                    }
+                }
+            } else {
+                // Hole - No floor collision
+            }
+
+            // Death Check
+            if (playerPos.y < -R - 5) {
+                gameOver();
+            }
+
+            // 4. Rotation Logic (Switching Faces)
+            // If x > R, we move to the Right Face
+            if (playerPos.x > R - playerHeight) {
+                // Transition Right
+                currentFace = (currentFace + 1) % 4;
+                targetWorldRotation -= Math.PI / 2;
+                playerPos.x = -R + playerHeight + 0.1; // Teleport to left side of new face
+            } else if (playerPos.x < -R + playerHeight) {
+                // Transition Left
+                currentFace = (currentFace + 3) % 4; // Wrap backwards
+                targetWorldRotation += Math.PI / 2;
+                playerPos.x = R - playerHeight - 0.1; // Teleport to right side of new face
+            }
+
+            // 5. Update Visuals
+            
+            // Smooth Camera Rotation
+            currentWorldRotation += (targetWorldRotation - currentWorldRotation) * ROTATION_SPEED * dt;
+            
+            // Apply rotation to the WORLD (Tunnel Group)
+            tunnelGroup.rotation.z = currentWorldRotation;
+
+            // Player Position in World Space
+            // We calculate the player's world position based on current face and rotation
+            // Actually, we rotate the tunnel, so the "floor" is always -Y in the world frame?
+            // No, if we rotate the tunnel group, the tunnel geometry moves.
+            // The logic assumes "Local Space" where Floor is always -Y.
+            // So if we rotate the Tunnel to match the logic, the Player can just stay at (localX, localY, worldZ).
+            // BUT, if the tunnel rotates, and the player is NOT in the tunnel group, the player needs to stay still?
+            // Correct.
+            // If the tunnel rotates such that Face 1 becomes the floor (visual bottom), 
+            // then our logical `playerPos` (which assumes Face 1 is floor) maps directly to World (x,y,z).
+            
+            // So:
+            player.position.set(playerPos.x, playerPos.y, playerPos.z);
+            
+            // Camera Follow
+            // Camera sits behind and above player.
+            // Since world rotates to keep player down, camera doesn't need to rotate Z.
+            camera.position.x = playerPos.x * 0.5; // Slight lean
+            camera.position.y = 2;
+            camera.position.z = playerPos.z + 6;
+            camera.lookAt(0, 0, playerPos.z - 10);
+
+            // Update Fog to match player Z
+            scene.fog.color.setHex(0x050505);
+            
+            renderer.render(scene, camera);
+        }
+
+        function gameOver() {
+            isPlaying = false;
+            document.getElementById('overlay').style.display = 'flex';
+            document.getElementById('overlay').style.opacity = 1;
+            document.querySelector('h1').innerText = "GAME OVER";
+            document.querySelector('.btn').innerText = "TRY AGAIN";
+        }
+
+        // --- INPUT HANDLERS ---
+        function onKeyDown(e) {
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
+            if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') keys.jump = true;
+        }
+        function onKeyUp(e) {
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+            if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') keys.jump = false;
+        }
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- START ---
+        init();
+
+    </script>
+</body>
+</html>
