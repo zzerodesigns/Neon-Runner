@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Neon Runner v0.3.3</title>
+    <title>Neon Runner v0.3.4</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary: #00ffcc;
-            --bg: #050510;
-            --panel: rgba(10, 20, 30, 0.95);
+            --bg: #120520; /* Brighter purple-ish dark bg */
+            --panel: rgba(20, 10, 40, 0.9);
         }
-        body { margin: 0; overflow: hidden; background: black; font-family: 'Orbitron', sans-serif; user-select: none; }
+        body { margin: 0; overflow: hidden; background: #050010; font-family: 'Orbitron', sans-serif; user-select: none; }
         canvas { display: block; }
         
         /* UI LAYOUT */
@@ -26,21 +26,21 @@
             z-index: 10;
         }
         .hud-item {
-            text-shadow: 0 0 10px var(--primary);
+            text-shadow: 0 0 15px var(--primary);
             color: white;
         }
-        #score-container { font-size: 32px; font-weight: 900; color: var(--primary); }
-        #lives-container { font-size: 32px; color: #ff3366; text-shadow: 0 0 10px #ff3366; }
-        #fps-counter { font-size: 14px; color: yellow; margin-top: 5px; display: none; text-align: right; }
+        #score-container { font-size: 36px; font-weight: 900; color: var(--primary); filter: drop-shadow(0 0 10px var(--primary)); }
+        #lives-container { font-size: 32px; color: #ff3366; text-shadow: 0 0 15px #ff3366; }
+        #fps-counter { font-size: 14px; color: #ccff00; margin-top: 5px; display: none; text-align: right; }
         
         #damage-overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: #ff0000;
+            background: linear-gradient(rgba(255, 0, 0, 0.3), transparent, rgba(255, 0, 0, 0.3));
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.1s;
-            mix-blend-mode: overlay;
+            mix-blend-mode: hard-light;
             z-index: 5;
         }
 
@@ -48,8 +48,8 @@
         .overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85);
-            backdrop-filter: blur(8px);
+            background: rgba(10, 5, 20, 0.85);
+            backdrop-filter: blur(10px);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -65,29 +65,30 @@
         }
         
         h1 { 
-            font-size: 72px; 
+            font-size: 80px; 
             margin: 0 0 10px 0; 
             background: linear-gradient(to bottom, #fff, var(--primary));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             text-transform: uppercase; 
-            letter-spacing: 4px;
-            filter: drop-shadow(0 0 20px var(--primary));
+            letter-spacing: 6px;
+            filter: drop-shadow(0 0 25px var(--primary));
             text-align: center;
         }
         
         .version-text {
-            color: #666;
-            font-size: 14px;
-            margin-bottom: 20px;
-            letter-spacing: 2px;
+            color: #88aaff;
+            font-size: 16px;
+            margin-bottom: 30px;
+            letter-spacing: 3px;
+            text-shadow: 0 0 10px #0066ff;
         }
 
         .btn {
-            margin: 10px;
-            padding: 15px 40px;
-            font-size: 20px;
-            background: rgba(0, 255, 204, 0.1);
+            margin: 12px;
+            padding: 18px 50px;
+            font-size: 22px;
+            background: rgba(0, 255, 204, 0.15);
             color: var(--primary);
             border: 2px solid var(--primary);
             cursor: pointer;
@@ -95,12 +96,13 @@
             text-transform: uppercase;
             transition: all 0.2s;
             clip-path: polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%);
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.1);
         }
         .btn:hover {
             background: var(--primary);
-            color: black;
-            box-shadow: 0 0 30px var(--primary);
-            transform: scale(1.05);
+            color: #000;
+            box-shadow: 0 0 40px var(--primary);
+            transform: scale(1.05) translateY(-2px);
         }
 
         /* SETTINGS MODAL */
@@ -108,33 +110,46 @@
             position: absolute;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            width: 400px;
+            width: 450px;
             background: var(--panel);
             border: 1px solid var(--primary);
-            padding: 30px;
+            padding: 40px;
             z-index: 30;
             display: none;
-            box-shadow: 0 0 50px rgba(0, 255, 204, 0.2);
+            box-shadow: 0 0 60px rgba(0, 255, 204, 0.3);
+            border-radius: 5px;
         }
-        #settings-modal h2 { color: var(--primary); margin-top: 0; text-align: center; }
+        #settings-modal h2 { color: var(--primary); margin-top: 0; text-align: center; font-size: 28px; text-shadow: 0 0 10px var(--primary); }
         .setting-row {
             display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 15px;
-            color: #ddd;
-            font-size: 14px;
+            margin-bottom: 20px;
+            color: #eef;
+            font-size: 16px;
         }
-        input[type=range] { width: 150px; accent-color: var(--primary); }
-        select { background: #000; color: white; border: 1px solid #444; padding: 5px; font-family: inherit; }
+        input[type=range] { width: 180px; accent-color: var(--primary); cursor: pointer; }
+        select { 
+            background: #050510; color: white; border: 1px solid #444; 
+            padding: 8px; font-family: inherit; font-size: 14px; 
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
 
         .controls-hint {
-            margin-top: 40px;
+            margin-top: 50px;
             display: flex;
-            gap: 30px;
-            font-size: 12px;
-            color: #888;
+            gap: 40px;
+            font-size: 14px;
+            color: #aaa;
             text-transform: uppercase;
+            text-shadow: 0 0 5px rgba(0,0,0,0.5);
         }
-        .key { border: 1px solid #666; padding: 4px 8px; color: #fff; margin-right: 5px; }
+        .key { 
+            border: 1px solid #00aaff; 
+            padding: 5px 10px; 
+            color: #fff; 
+            margin-right: 8px; 
+            background: rgba(0, 100, 255, 0.2); 
+            border-radius: 4px;
+        }
 
     </style>
 </head>
@@ -156,9 +171,9 @@
     <!-- MAIN MENU -->
     <div id="main-menu" class="overlay">
         <h1>Neon Runner</h1>
-        <div class="version-text">v0.3.3</div>
+        <div class="version-text">v0.3.4</div>
         <button class="btn" onclick="game.start()">Start Run</button>
-        <button class="btn" onclick="ui.openSettings()" style="font-size: 16px; padding: 10px 30px; opacity: 0.8">Settings</button>
+        <button class="btn" onclick="ui.openSettings()" style="font-size: 16px; padding: 12px 35px; opacity: 0.9">Settings</button>
         
         <div class="controls-hint">
             <div><span class="key">←</span> <span class="key">→</span> Rotate</div>
@@ -170,7 +185,7 @@
     <!-- PAUSE MENU -->
     <div id="pause-menu" class="overlay hidden">
         <h1>PAUSED</h1>
-        <div class="version-text">v0.3.3</div>
+        <div class="version-text">v0.3.4</div>
         <button class="btn" onclick="game.togglePause()">Resume</button>
         <button class="btn" onclick="ui.openSettings()">Settings</button>
         <button class="btn" onclick="ui.toMenu()" style="border-color: #666; color: #ccc;">Quit</button>
@@ -178,8 +193,8 @@
 
     <!-- GAME OVER -->
     <div id="game-over" class="overlay hidden">
-        <h1 style="color: #ff3366; -webkit-text-fill-color: #ff3366;">CRASHED</h1>
-        <p id="final-score" style="font-size: 24px; color: white; margin-bottom: 30px;">Distance: 1200m</p>
+        <h1 style="color: #ff3366; -webkit-text-fill-color: #ff3366; filter: drop-shadow(0 0 30px red);">CRASHED</h1>
+        <p id="final-score" style="font-size: 28px; color: white; margin-bottom: 30px; text-shadow: 0 0 10px white;">Distance: 1200m</p>
         <button class="btn" onclick="game.restart()">Retry</button>
         <button class="btn" onclick="ui.toMenu()" style="border-color: #666; color: #ccc;">Menu</button>
     </div>
@@ -189,11 +204,11 @@
         <h2>SYSTEMS</h2>
         <div class="setting-row">
             <span>Music Volume</span>
-            <input type="range" min="0" max="100" value="30" oninput="audioSys.setMusicVol(this.value)">
+            <input type="range" min="0" max="100" value="40" oninput="audioSys.setMusicVol(this.value)">
         </div>
         <div class="setting-row">
             <span>SFX Volume</span>
-            <input type="range" min="0" max="100" value="50" oninput="audioSys.setSfxVol(this.value)">
+            <input type="range" min="0" max="100" value="60" oninput="audioSys.setSfxVol(this.value)">
         </div>
         <div class="setting-row">
             <span>Difficulty</span>
@@ -216,7 +231,7 @@
             <span>Show FPS</span>
             <input type="checkbox" onchange="ui.toggleFps(this.checked)">
         </div>
-        <div style="text-align: center; margin-top: 20px;">
+        <div style="text-align: center; margin-top: 30px;">
             <button class="btn" onclick="ui.closeSettings()" style="padding: 10px 20px; font-size: 14px;">Close</button>
         </div>
     </div>
@@ -226,28 +241,41 @@
 
     <script>
         /**
-         * AUDIO SYSTEM
+         * AUDIO SYSTEM - LAYERED BANGER EDITION
          */
         const audioSys = {
             ctx: null, musicGain: null, sfxGain: null, isPlaying: false,
-            currentTrackIdx: 0, noteIdx: 0,
+            tick: 0,
             
-            // Tracks (v0.5 Frequency Arrays)
-            tracks: [
-                [110, 110, 220, 165, 110, 220, 165, 130], // A2 Minor
-                [87, 87, 174, 130, 87, 130, 174, 196],    // F Major
-                [130, 130, 196, 146, 130, 196, 261, 246]  // C Minor
-            ],
+            // Sequencer State
+            interval: null,
+            tempo: 125, // BPM
 
+            // Music Layers
+            bassLine: [110, 0, 110, 0, 220, 0, 165, 0], // Simple driving bass
+            arpLine: [220, 261, 330, 261, 440, 330, 261, 196], // Pentatonic-ish Arp
+            
             init() {
                 try {
                     window.AudioContext = window.AudioContext || window.webkitAudioContext;
                     this.ctx = new AudioContext();
                     this.musicGain = this.ctx.createGain();
                     this.sfxGain = this.ctx.createGain();
-                    this.musicGain.connect(this.ctx.destination);
-                    this.sfxGain.connect(this.ctx.destination);
-                    this.setMusicVol(30); this.setSfxVol(50);
+                    
+                    // Master compressor to glue the mix
+                    const compressor = this.ctx.createDynamicsCompressor();
+                    compressor.threshold.value = -10;
+                    compressor.knee.value = 40;
+                    compressor.ratio.value = 12;
+                    compressor.attack.value = 0;
+                    compressor.release.value = 0.25;
+
+                    this.musicGain.connect(compressor);
+                    this.sfxGain.connect(compressor);
+                    compressor.connect(this.ctx.destination);
+                    
+                    this.setMusicVol(40); 
+                    this.setSfxVol(60);
                 } catch(e) { console.error("Audio Init Failed", e); }
             },
 
@@ -257,34 +285,147 @@
                 try { if(this.ctx.state === 'suspended') this.ctx.resume(); } catch(e){}
                 if (this.isPlaying) return;
 
-                const filter = this.ctx.createBiquadFilter();
-                filter.type = 'lowpass';
-                filter.frequency.value = 1000;
-                filter.connect(this.musicGain);
-
-                this.noteIdx = 0;
-                this.musicInterval = setInterval(() => this.playNote(filter), 200); 
+                const stepTime = (60 / this.tempo) / 4; // 16th notes
+                this.tick = 0;
+                
+                this.interval = setInterval(() => this.sequencerStep(), stepTime * 1000);
                 this.isPlaying = true;
             },
 
-            playNote(dest) {
-                if (!this.ctx) return;
-                const track = this.tracks[this.currentTrackIdx];
-                const freq = track[this.noteIdx];
-                this.noteIdx = (this.noteIdx + 1) % track.length;
-                if (this.noteIdx === 0 && Math.random() < 0.2) this.currentTrackIdx = (this.currentTrackIdx + 1) % this.tracks.length;
+            sequencerStep() {
+                if(!this.ctx) return;
+                const t = this.ctx.currentTime;
+                const step = this.tick % 16;
+                const bar = Math.floor(this.tick / 16);
 
-                const osc = this.ctx.createOscillator();
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-                const env = this.ctx.createGain();
-                env.gain.setValueAtTime(0.15, this.ctx.currentTime);
-                env.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.18);
-                osc.connect(env); env.connect(dest);
-                osc.start(); osc.stop(this.ctx.currentTime + 0.2);
+                // --- BASS (Every 2 steps = 8th notes) ---
+                if (step % 2 === 0) {
+                    const idx = (step / 2) % this.bassLine.length;
+                    const freq = this.bassLine[idx];
+                    if (freq > 0) this.playBass(freq, t);
+                }
+
+                // --- ARP/LEAD (16th notes, evolves) ---
+                // Layer in after a few bars or distance
+                if (step % 2 === 0 || Math.random() > 0.3) {
+                     // Variation
+                    const idx = (step + bar) % this.arpLine.length;
+                    let freq = this.arpLine[idx];
+                    if (bar % 4 === 3) freq *= 1.5; // High octave fill
+                    this.playLead(freq, t);
+                }
+
+                // --- DRUMS ---
+                // Kick: 1, 5, 9, 13 (4/4 on floor)
+                if (step % 4 === 0) this.playKick(t);
+                
+                // HiHat: Every odd 16th
+                if (step % 2 !== 0) this.playHat(t);
+                
+                // Snare: 5, 13 (Backbeat)
+                if (step === 4 || step === 12) this.playSnare(t);
+
+                this.tick++;
             },
 
-            stopMusic() { clearInterval(this.musicInterval); this.isPlaying = false; },
+            playBass(freq, t) {
+                const osc = this.ctx.createOscillator();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(freq, t);
+                
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(400, t);
+                filter.frequency.exponentialRampToValueAtTime(100, t + 0.2);
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.4, t);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.musicGain);
+                osc.start(t);
+                osc.stop(t + 0.25);
+            },
+
+            playLead(freq, t) {
+                const osc = this.ctx.createOscillator();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(freq, t);
+                
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.05, t); // Lower volume
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+
+                osc.connect(gain);
+                gain.connect(this.musicGain);
+                osc.start(t);
+                osc.stop(t + 0.15);
+            },
+
+            playKick(t) {
+                const osc = this.ctx.createOscillator();
+                osc.frequency.setValueAtTime(150, t);
+                osc.frequency.exponentialRampToValueAtTime(0.01, t + 0.1);
+                
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.8, t);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+
+                osc.connect(gain);
+                gain.connect(this.musicGain);
+                osc.start(t);
+                osc.stop(t + 0.15);
+            },
+
+            playSnare(t) {
+                const bufferSize = this.ctx.sampleRate * 0.1;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1);
+
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'highpass';
+                filter.frequency.value = 1000;
+                
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.3, t);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.musicGain);
+                noise.start(t);
+            },
+
+            playHat(t) {
+                const bufferSize = this.ctx.sampleRate * 0.05;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1);
+
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'highpass';
+                filter.frequency.value = 5000;
+                
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.1, t); // Quiet
+                gain.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.musicGain);
+                noise.start(t);
+            },
+
+            stopMusic() { clearInterval(this.interval); this.isPlaying = false; },
 
             playSfx(type) {
                 if (!this.ctx) return;
@@ -295,23 +436,24 @@
                 osc.connect(gain); gain.connect(this.sfxGain);
 
                 if (type === 'jump') {
-                    osc.type = 'square';
-                    osc.frequency.setValueAtTime(150, t);
-                    osc.frequency.linearRampToValueAtTime(300, t + 0.1);
-                    gain.gain.setValueAtTime(0.2, t);
-                    gain.gain.linearRampToValueAtTime(0, t + 0.1);
-                    osc.start(t); osc.stop(t + 0.1);
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(200, t);
+                    osc.frequency.linearRampToValueAtTime(600, t + 0.15);
+                    gain.gain.setValueAtTime(0.3, t);
+                    gain.gain.linearRampToValueAtTime(0, t + 0.15);
+                    osc.start(t); osc.stop(t + 0.2);
                 } else if (type === 'die') {
                     osc.type = 'sawtooth';
                     osc.frequency.setValueAtTime(100, t);
-                    osc.frequency.exponentialRampToValueAtTime(10, t + 0.5);
-                    gain.gain.setValueAtTime(0.4, t);
-                    gain.gain.linearRampToValueAtTime(0, t + 0.5);
-                    osc.start(t); osc.stop(t + 0.5);
+                    osc.frequency.exponentialRampToValueAtTime(20, t + 0.6);
+                    gain.gain.setValueAtTime(0.5, t);
+                    gain.gain.linearRampToValueAtTime(0, t + 0.6);
+                    osc.start(t); osc.stop(t + 0.6);
                 } else if (type === 'life') {
                     osc.type = 'sine';
-                    osc.frequency.setValueAtTime(800, t);
+                    osc.frequency.setValueAtTime(600, t);
                     osc.frequency.setValueAtTime(1200, t + 0.1);
+                    osc.frequency.setValueAtTime(1800, t + 0.2);
                     gain.gain.setValueAtTime(0.3, t);
                     gain.gain.linearRampToValueAtTime(0, t + 0.3);
                     osc.start(t); osc.stop(t + 0.3);
@@ -322,14 +464,14 @@
         };
 
         /**
-         * STAGE CONFIGURATION - Brighter, Matte Colors
+         * STAGE CONFIGURATION - Brighter, Vibrant Colors
          */
         const STAGES = [
-            { score: 0,    wall: 0x222222, edge: 0x00ffcc, bg: 0x0a0a1a }, // Neon Cyan
-            { score: 500,  wall: 0x2a1111, edge: 0xff4444, bg: 0x1a0505 }, // Magma Red
-            { score: 1000, wall: 0x112a11, edge: 0x44ff44, bg: 0x051a05 }, // Matrix Green
-            { score: 1500, wall: 0x111133, edge: 0x4488ff, bg: 0x050525 }, // Deep Blue
-            { score: 2000, wall: 0x333311, edge: 0xffff44, bg: 0x252505 }  // Cyber Yellow
+            { score: 0,    wall: 0x333344, edge: 0x00ffff, bg: 0x120520 }, // Neon Cyan / Deep Purple
+            { score: 500,  wall: 0x442222, edge: 0xff3366, bg: 0x200505 }, // Magma Red
+            { score: 1000, wall: 0x224422, edge: 0x66ff66, bg: 0x052005 }, // Toxic Green
+            { score: 1500, wall: 0x222255, edge: 0x3388ff, bg: 0x050530 }, // Electric Blue
+            { score: 2000, wall: 0x444422, edge: 0xffff00, bg: 0x252505 }  // Solar Yellow
         ];
 
         /**
@@ -339,7 +481,7 @@
             sides: 8,
             tunnelRadius: 8,
             segmentLength: 5,
-            renderDist: 24,
+            renderDist: 26,
             speed: 20,
             jumpForce: 16,
             gravity: 45,
@@ -358,7 +500,7 @@
             keys: { left: false, right: false, jump: false },
             difficulty: 'NORMAL', holeProb: 0.15,
             themeMode: 'DYNAMIC',
-            fixedTheme: { wall: 0x222222, edge: 0x00ffcc, bg: 0x0a0a1a },
+            fixedTheme: STAGES[0],
 
             // Reused Geometry
             geoWall: null,
@@ -366,47 +508,45 @@
             init() {
                 this.scene = new THREE.Scene();
                 this.scene.background = new THREE.Color(STAGES[0].bg);
-                this.scene.fog = new THREE.Fog(STAGES[0].bg, 10, 90);
+                this.scene.fog = new THREE.Fog(STAGES[0].bg, 15, 80); // Color fog for brightness
 
-                this.camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 200);
+                this.camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 200);
                 
-                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
                 this.renderer.shadowMap.enabled = true;
                 this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
                 document.body.appendChild(this.renderer.domElement);
 
-                // Brighter Lighting
-                const hemiLight = new THREE.HemisphereLight(0xffffff, 0x000000, 0.6);
-                this.scene.add(hemiLight);
+                // --- BRIGHTER LIGHTING SETUP ---
+                const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+                this.scene.add(ambient);
+
                 const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-                dirLight.position.set(20, 50, 20);
+                dirLight.position.set(10, 40, 20);
                 dirLight.castShadow = true;
-                dirLight.shadow.mapSize.width = 1024;
-                dirLight.shadow.mapSize.height = 1024;
                 this.scene.add(dirLight);
 
+                // Tunnel Group
                 this.tunnel = new THREE.Group();
                 this.scene.add(this.tunnel);
 
                 // Player
                 this.player = new THREE.Group();
                 const bodyGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
-                // Matte Material
                 const bodyMat = new THREE.MeshStandardMaterial({ 
-                    color: 0xdddddd, 
-                    roughness: 0.9, 
-                    metalness: 0.1 
+                    color: 0xffffff, 
+                    roughness: 0.2, 
+                    emissive: 0x444444 // Slight glow
                 });
                 const mesh = new THREE.Mesh(bodyGeo, bodyMat);
-                // Position adjustment to sit exactly on wall surface
-                // Wall surface is at -R + 0.25 (inner face)
-                // Mesh center y = 0.3. Target Y = 0.25 + 0.3 = 0.55
-                mesh.position.y = 0.55; 
+                // Center the mesh visually around (0,0,0) of the player group
+                // We will handle the "floor offset" in the rendering logic (Polar Calc)
                 mesh.castShadow = true;
                 this.player.add(mesh);
 
-                this.playerLight = new THREE.PointLight(0x00ffcc, 1.5, 30);
+                // Intense Player Light
+                this.playerLight = new THREE.PointLight(0x00ffff, 2.0, 40);
                 this.playerLight.position.set(0, 2, 0);
                 this.player.add(this.playerLight);
 
@@ -461,7 +601,7 @@
                 while(this.tunnel.children.length > 0) this.tunnel.remove(this.tunnel.children[0]);
                 this.segments = [];
 
-                for(let i=0; i<10; i++) this.addSegment(i * this.segmentLength, true);
+                for(let i=0; i<12; i++) this.addSegment(i * this.segmentLength, true);
                 
                 this.updateHud();
                 this.updateCamera(0.016);
@@ -481,19 +621,27 @@
             addSegment(z, safe) {
                 const style = this.getCurrentVisuals();
                 
-                this.scene.background.lerp(new THREE.Color(style.bg), 0.1);
-                this.scene.fog.color.lerp(new THREE.Color(style.bg), 0.1);
-                this.playerLight.color.lerp(new THREE.Color(style.edge), 0.1);
-                document.documentElement.style.setProperty('--primary', '#' + new THREE.Color(style.edge).getHexString());
+                // Color Transition
+                const targetBg = new THREE.Color(style.bg);
+                this.scene.background.lerp(targetBg, 0.05);
+                this.scene.fog.color.lerp(targetBg, 0.05);
+                
+                const targetEdge = new THREE.Color(style.edge);
+                this.playerLight.color.lerp(targetEdge, 0.1);
+                
+                // CSS var update slightly optimized
+                if(Math.random() < 0.1) document.documentElement.style.setProperty('--primary', '#' + targetEdge.getHexString());
 
                 const group = new THREE.Group();
                 group.position.z = -z;
                 
-                // Matte Material
+                // Brighter Walls using Emissive for Neon feel
                 const mat = new THREE.MeshStandardMaterial({ 
                     color: style.wall, 
-                    roughness: 0.9, 
-                    metalness: 0.0 
+                    roughness: 0.6, 
+                    metalness: 0.1,
+                    emissive: style.wall,
+                    emissiveIntensity: 0.2
                 });
 
                 const segData = { z: -z, walls: [] };
@@ -530,9 +678,10 @@
 
             loop(time) {
                 requestAnimationFrame((t) => this.loop(t));
-                const dt = Math.min((time - this.lastTime) / 1000, 0.1);
+                const dt = Math.min((time - this.lastTime) / 1000, 0.05); // Cap dt
                 this.lastTime = time;
 
+                // FPS
                 this.frameCount++;
                 if (time - this.lastFpsTime >= 1000) {
                     document.getElementById('fps-counter').innerText = this.frameCount + " FPS";
@@ -542,14 +691,9 @@
 
                 if(this.isPlaying && !this.isPaused) {
                     this.updatePhysics(dt);
+                    this.renderPlayerPosition(); // NEW: Separate physics vs render logic
                     this.updateCamera(dt);
                     
-                    // Rotate player mesh to align with world tilt for smoothness
-                    // This masks the snap when faces switch
-                    if (this.player.children[0]) {
-                        this.player.children[0].rotation.z = (this.worldRot - this.targetRot);
-                    }
-
                     this.score += this.speed * dt;
                     if (this.score - this.lastLifeScore > 1000) {
                         if(this.lives < 3) { this.lives++; audioSys.playSfx('life'); this.updateHud(); }
@@ -559,7 +703,7 @@
                     document.getElementById('score-container').innerText = Math.floor(this.score) + "m";
                     
                     const leadZ = -this.segments[this.segments.length-1].z;
-                    if (this.score + (this.renderDist * this.segmentLength * 0.6) > leadZ) {
+                    if (this.score + (this.renderDist * this.segmentLength * 0.7) > leadZ) {
                         this.addSegment(leadZ + this.segmentLength, false);
                     }
                 } else if (!this.isPlaying) {
@@ -582,7 +726,7 @@
                 v.y -= this.gravity * dt;
                 p.y += v.y * dt;
 
-                // Collisions
+                // Detect current segment
                 let currentSeg = null;
                 for(let i=0; i<this.segments.length; i++) {
                     const s = this.segments[i];
@@ -592,6 +736,7 @@
                     }
                 }
 
+                // Wall switching logic
                 const wallWidth = 2 * this.tunnelRadius * Math.tan(Math.PI / this.sides);
                 const halfW = wallWidth / 2;
                 
@@ -603,6 +748,7 @@
                     p.x += wallWidth;
                 }
 
+                // Floor collision
                 if (currentSeg) {
                     const hasFloor = currentSeg.walls[this.faceIndex];
                     if (hasFloor) {
@@ -617,8 +763,64 @@
                     }
                 }
 
-                // Lower death threshold to -40
-                if (p.y < -40) this.handleDeath();
+                // Death Check - Lower threshold significantly
+                if (p.y < -25) this.handleDeath();
+            },
+
+            // --- KEY FIX: POLAR COORDINATE RENDERING ---
+            // Decouples the physical "Platformer" X/Y from the Visual 3D World
+            renderPlayerPosition() {
+                const theta = (Math.PI * 2) / this.sides;
+                const faceAngle = this.faceIndex * theta;
+                
+                // Start with the face's center orientation (pointing down)
+                // Position vector relative to tunnel center:
+                // Down vector (0, -1) * radius
+                // Plus X offset along tangent (1, 0)
+                // Plus Y offset along normal (0, 1) (jumping/falling)
+                
+                // Let's perform the rotation manually to be robust
+                // Base position on Face 0 (Bottom): 
+                // x = playerPos.x
+                // y = -tunnelRadius + playerPos.y + 0.3 (Mesh half height)
+                
+                const localX = this.playerPos.x;
+                const localY = -this.tunnelRadius + this.playerPos.y + 0.3; // +0.3 to sit on floor surface
+                
+                // Rotate this point by 'faceAngle' around (0,0)
+                const cosA = Math.cos(faceAngle);
+                const sinA = Math.sin(faceAngle);
+                
+                // Standard 2D rotation:
+                // x' = x cos - y sin
+                // y' = x sin + y cos
+                const rotX = localX * cosA - localY * sinA;
+                const rotY = localX * sinA + localY * cosA;
+                
+                // Now apply the global World Rotation (smooth lerp)
+                // This 'worldRot' is the rotation of the tunnel itself
+                // Since the tunnel rotates to keep the player at the bottom, we actually just
+                // place the player at (rotX, rotY) relative to world space, 
+                // BUT we must rotate this point by the tunnel's current rotation?
+                // No, the tunnel object rotates. The player is NOT a child of the tunnel.
+                // The player is in Scene space.
+                // If the tunnel rotates by `worldRot`, the "Floor" moves.
+                // We want the player to stay attached to the floor visually.
+                
+                const wRot = this.tunnel.rotation.z;
+                const cosW = Math.cos(wRot);
+                const sinW = Math.sin(wRot);
+                
+                const finalX = rotX * cosW - rotY * sinW;
+                const finalY = rotX * sinW + rotY * cosW;
+                
+                this.player.position.set(finalX, finalY, this.playerPos.z);
+                
+                // Also rotate the mesh itself so it stands "up" relative to the wall
+                // Face Normal Angle = faceAngle.
+                // World rotation adds wRot.
+                // Player should rotate by faceAngle + wRot.
+                this.player.rotation.z = faceAngle + wRot;
             },
 
             rotateWorld(dir) {
@@ -628,25 +830,28 @@
             },
 
             updateCamera(dt) {
-                // Faster rotation speed (12x) to reduce snap perception
-                this.worldRot += (this.targetRot - this.worldRot) * 12 * dt;
+                // Smooth rotation of tunnel
+                this.worldRot += (this.targetRot - this.worldRot) * 10 * dt;
                 this.tunnel.rotation.z = this.worldRot;
 
-                this.player.position.set(this.playerPos.x, -this.tunnelRadius + this.playerPos.y, this.playerPos.z);
+                // Camera Logic
+                // We want to look at the player, but stay oriented up?
+                // Actually, standard runner cam is fixed up, while world rotates.
+                // Player X should be near 0 if worldRot catches up.
                 
-                // Camera Follow
-                this.camera.position.z = this.playerPos.z + 10;
+                const p = this.player.position; // Uses the smoothed render position
                 
-                // FIX: Decouple Camera X from Player X to stop jitter/snapping
-                // Smoothly interpolate camera X towards 0 (Center)
-                this.camera.position.x = this.camera.position.x * 0.9; 
+                this.camera.position.z = p.z + 10;
+                
+                // Smooth follow X/Y
+                // We want to see them fall, so we follow Y but lag behind or clamp
+                const targetCamY = Math.max(-8, p.y + 3); 
+                this.camera.position.y += (targetCamY - this.camera.position.y) * 0.1;
+                
+                // Smooth follow X loosely
+                this.camera.position.x += (p.x * 0.5 - this.camera.position.x) * 0.1;
 
-                // Clamp camera Y so we can see player fall
-                // Stop following if player goes below -5
-                const camYTarget = Math.max(-5, this.playerPos.y + 2);
-                this.camera.position.y += (camYTarget - this.camera.position.y) * 0.1;
-
-                this.camera.lookAt(0, -5, this.playerPos.z - 20);
+                this.camera.lookAt(0, p.y - 2, p.z - 20);
             },
 
             handleDeath() {
@@ -655,8 +860,8 @@
                 this.updateHud();
 
                 const dmg = document.getElementById('damage-overlay');
-                dmg.style.opacity = 0.5;
-                setTimeout(() => dmg.style.opacity = 0, 150);
+                dmg.style.opacity = 0.8;
+                setTimeout(() => dmg.style.opacity = 0, 300);
                 
                 if (this.lives <= 0) {
                     document.getElementById('final-score').innerText = "Distance: " + Math.floor(this.score) + "m";
@@ -665,12 +870,11 @@
                     audioSys.stopMusic();
                 } else {
                     this.velocity.set(0,0,0);
-                    // High respawn to give a moment of "reset"
-                    this.playerPos.y = 20; 
+                    this.playerPos.y = 15; // Drop from sky
                     this.playerPos.x = 0;
-                    // Reset rotation to align
-                    this.worldRot = this.targetRot;
-                    this.tunnel.rotation.z = this.worldRot;
+                    
+                    // Reset rotation alignment to prevent disorientation
+                    this.worldRot = this.targetRot; 
                 }
             },
             
@@ -690,11 +894,11 @@
             setTheme(val) {
                 this.themeMode = val;
                 if(val === 'NEON') {
-                    this.fixedTheme = { wall: 0x222222, edge: 0x00ffcc, bg: 0x0a0a1a };
+                    this.fixedTheme = STAGES[0];
                 } else if(val === 'MAGMA') {
-                    this.fixedTheme = { wall: 0x2a1111, edge: 0xff4444, bg: 0x1a0505 };
+                    this.fixedTheme = STAGES[1];
                 } else if(val === 'MATRIX') {
-                    this.fixedTheme = { wall: 0x112a11, edge: 0x44ff44, bg: 0x051a05 };
+                    this.fixedTheme = STAGES[2];
                 }
             },
 
