@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Neon Runner v0.3.2</title>
+    <title>Neon Runner v0.3.3</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -36,10 +36,11 @@
         #damage-overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: red;
+            background: #ff0000;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.1s;
+            mix-blend-mode: overlay;
             z-index: 5;
         }
 
@@ -47,8 +48,8 @@
         .overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8);
-            backdrop-filter: blur(5px);
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(8px);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -155,7 +156,7 @@
     <!-- MAIN MENU -->
     <div id="main-menu" class="overlay">
         <h1>Neon Runner</h1>
-        <div class="version-text">v0.3.2</div>
+        <div class="version-text">v0.3.3</div>
         <button class="btn" onclick="game.start()">Start Run</button>
         <button class="btn" onclick="ui.openSettings()" style="font-size: 16px; padding: 10px 30px; opacity: 0.8">Settings</button>
         
@@ -169,7 +170,7 @@
     <!-- PAUSE MENU -->
     <div id="pause-menu" class="overlay hidden">
         <h1>PAUSED</h1>
-        <div class="version-text">v0.3.2</div>
+        <div class="version-text">v0.3.3</div>
         <button class="btn" onclick="game.togglePause()">Resume</button>
         <button class="btn" onclick="ui.openSettings()">Settings</button>
         <button class="btn" onclick="ui.toMenu()" style="border-color: #666; color: #ccc;">Quit</button>
@@ -225,7 +226,7 @@
 
     <script>
         /**
-         * AUDIO SYSTEM (Updated to v0.5 spec)
+         * AUDIO SYSTEM
          */
         const audioSys = {
             ctx: null, musicGain: null, sfxGain: null, isPlaying: false,
@@ -256,14 +257,13 @@
                 try { if(this.ctx.state === 'suspended') this.ctx.resume(); } catch(e){}
                 if (this.isPlaying) return;
 
-                // Synth Config (v0.5)
                 const filter = this.ctx.createBiquadFilter();
                 filter.type = 'lowpass';
                 filter.frequency.value = 1000;
                 filter.connect(this.musicGain);
 
                 this.noteIdx = 0;
-                this.musicInterval = setInterval(() => this.playNote(filter), 200); // Faster tempo (v0.5)
+                this.musicInterval = setInterval(() => this.playNote(filter), 200); 
                 this.isPlaying = true;
             },
 
@@ -272,20 +272,14 @@
                 const track = this.tracks[this.currentTrackIdx];
                 const freq = track[this.noteIdx];
                 this.noteIdx = (this.noteIdx + 1) % track.length;
-                
-                // Switch track
-                if (this.noteIdx === 0 && Math.random() < 0.2) {
-                    this.currentTrackIdx = (this.currentTrackIdx + 1) % this.tracks.length;
-                }
+                if (this.noteIdx === 0 && Math.random() < 0.2) this.currentTrackIdx = (this.currentTrackIdx + 1) % this.tracks.length;
 
                 const osc = this.ctx.createOscillator();
                 osc.type = 'sawtooth';
                 osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-                
                 const env = this.ctx.createGain();
                 env.gain.setValueAtTime(0.15, this.ctx.currentTime);
                 env.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.18);
-                
                 osc.connect(env); env.connect(dest);
                 osc.start(); osc.stop(this.ctx.currentTime + 0.2);
             },
@@ -301,7 +295,7 @@
                 osc.connect(gain); gain.connect(this.sfxGain);
 
                 if (type === 'jump') {
-                    osc.type = 'square'; // v0.5
+                    osc.type = 'square';
                     osc.frequency.setValueAtTime(150, t);
                     osc.frequency.linearRampToValueAtTime(300, t + 0.1);
                     gain.gain.setValueAtTime(0.2, t);
@@ -328,14 +322,14 @@
         };
 
         /**
-         * STAGE CONFIGURATION
+         * STAGE CONFIGURATION - Brighter, Matte Colors
          */
         const STAGES = [
-            { score: 0,    wall: 0x111111, edge: 0x00ffcc, bg: 0x050510 }, // Neon Cyan
-            { score: 500,  wall: 0x1a0505, edge: 0xff3366, bg: 0x100505 }, // Magma Red
-            { score: 1000, wall: 0x051a05, edge: 0x33ff33, bg: 0x051005 }, // Matrix Green
-            { score: 1500, wall: 0x111122, edge: 0x3366ff, bg: 0x050515 }, // Deep Blue
-            { score: 2000, wall: 0x222222, edge: 0xffff00, bg: 0x101005 }  // Cyber Yellow
+            { score: 0,    wall: 0x222222, edge: 0x00ffcc, bg: 0x0a0a1a }, // Neon Cyan
+            { score: 500,  wall: 0x2a1111, edge: 0xff4444, bg: 0x1a0505 }, // Magma Red
+            { score: 1000, wall: 0x112a11, edge: 0x44ff44, bg: 0x051a05 }, // Matrix Green
+            { score: 1500, wall: 0x111133, edge: 0x4488ff, bg: 0x050525 }, // Deep Blue
+            { score: 2000, wall: 0x333311, edge: 0xffff44, bg: 0x252505 }  // Cyber Yellow
         ];
 
         /**
@@ -347,8 +341,8 @@
             segmentLength: 5,
             renderDist: 24,
             speed: 20,
-            jumpForce: 15,
-            gravity: 40,
+            jumpForce: 16,
+            gravity: 45,
             
             scene: null, camera: null, renderer: null,
             player: null, tunnel: null, playerLight: null,
@@ -364,67 +358,61 @@
             keys: { left: false, right: false, jump: false },
             difficulty: 'NORMAL', holeProb: 0.15,
             themeMode: 'DYNAMIC',
-            fixedTheme: { wall: 0x111111, edge: 0x00ffcc, bg: 0x050510 },
+            fixedTheme: { wall: 0x222222, edge: 0x00ffcc, bg: 0x0a0a1a },
 
             // Reused Geometry
             geoWall: null,
 
             init() {
-                // Scene
                 this.scene = new THREE.Scene();
                 this.scene.background = new THREE.Color(STAGES[0].bg);
-                this.scene.fog = new THREE.Fog(STAGES[0].bg, 10, 100);
+                this.scene.fog = new THREE.Fog(STAGES[0].bg, 10, 90);
 
-                // Camera
                 this.camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 200);
                 
-                // Renderer
                 this.renderer = new THREE.WebGLRenderer({ antialias: true });
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
                 this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
                 document.body.appendChild(this.renderer.domElement);
 
-                // Lights
-                const hemiLight = new THREE.HemisphereLight(0xffffff, 0x000000, 0.4);
+                // Brighter Lighting
+                const hemiLight = new THREE.HemisphereLight(0xffffff, 0x000000, 0.6);
                 this.scene.add(hemiLight);
-                const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+                const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
                 dirLight.position.set(20, 50, 20);
                 dirLight.castShadow = true;
+                dirLight.shadow.mapSize.width = 1024;
+                dirLight.shadow.mapSize.height = 1024;
                 this.scene.add(dirLight);
 
-                // Tunnel Group
                 this.tunnel = new THREE.Group();
                 this.scene.add(this.tunnel);
 
                 // Player
                 this.player = new THREE.Group();
-                
                 const bodyGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
+                // Matte Material
                 const bodyMat = new THREE.MeshStandardMaterial({ 
-                    color: 0x999999, 
-                    roughness: 0.2, 
-                    emissive: 0x222222 
+                    color: 0xdddddd, 
+                    roughness: 0.9, 
+                    metalness: 0.1 
                 });
                 const mesh = new THREE.Mesh(bodyGeo, bodyMat);
-                
-                // FIX: Raise player mesh so it sits on top of the wall (which has 0.5 thickness).
-                // Wall surface is at -R + 0.25 (inner face).
-                // Player Group is at -R. 
-                // We need mesh bottom to be at -R + 0.25.
-                // Mesh center is 0.3 (half height). 
-                // So Y should be 0.25 + 0.3 = 0.55.
+                // Position adjustment to sit exactly on wall surface
+                // Wall surface is at -R + 0.25 (inner face)
+                // Mesh center y = 0.3. Target Y = 0.25 + 0.3 = 0.55
                 mesh.position.y = 0.55; 
                 mesh.castShadow = true;
                 this.player.add(mesh);
 
-                // Glow
-                this.playerLight = new THREE.PointLight(0x00ffcc, 1.2, 25);
-                this.playerLight.position.set(0, 1.5, 0);
+                this.playerLight = new THREE.PointLight(0x00ffcc, 1.5, 30);
+                this.playerLight.position.set(0, 2, 0);
                 this.player.add(this.playerLight);
 
                 this.scene.add(this.player);
 
-                // Calculate Wall Geometry
+                // Wall Geometry
                 const wallWidth = 2 * this.tunnelRadius * Math.tan(Math.PI / this.sides);
                 this.geoWall = new THREE.BoxGeometry(wallWidth + 0.1, 0.5, this.segmentLength); 
                 
@@ -501,9 +489,12 @@
                 const group = new THREE.Group();
                 group.position.z = -z;
                 
-                const mat = new THREE.MeshStandardMaterial({ color: style.wall, roughness: 0.5 });
-                
-                // NO GRID MESH - Removed "awkward wireframe lines"
+                // Matte Material
+                const mat = new THREE.MeshStandardMaterial({ 
+                    color: style.wall, 
+                    roughness: 0.9, 
+                    metalness: 0.0 
+                });
 
                 const segData = { z: -z, walls: [] };
                 const theta = (Math.PI * 2) / this.sides;
@@ -516,7 +507,6 @@
                     }
                     segData.walls.push(true);
 
-                    // Physical Wall
                     const wall = new THREE.Mesh(this.geoWall, mat);
                     const angle = i * theta;
                     
@@ -526,7 +516,6 @@
                     
                     wall.castShadow = true;
                     wall.receiveShadow = true;
-                    
                     group.add(wall);
                 }
                 
@@ -544,7 +533,6 @@
                 const dt = Math.min((time - this.lastTime) / 1000, 0.1);
                 this.lastTime = time;
 
-                // FPS Calc
                 this.frameCount++;
                 if (time - this.lastFpsTime >= 1000) {
                     document.getElementById('fps-counter').innerText = this.frameCount + " FPS";
@@ -556,9 +544,14 @@
                     this.updatePhysics(dt);
                     this.updateCamera(dt);
                     
+                    // Rotate player mesh to align with world tilt for smoothness
+                    // This masks the snap when faces switch
+                    if (this.player.children[0]) {
+                        this.player.children[0].rotation.z = (this.worldRot - this.targetRot);
+                    }
+
                     this.score += this.speed * dt;
                     if (this.score - this.lastLifeScore > 1000) {
-                        // FIX: Cap lives at 3
                         if(this.lives < 3) { this.lives++; audioSys.playSfx('life'); this.updateHud(); }
                         this.lastLifeScore += 1000;
                     }
@@ -624,7 +617,8 @@
                     }
                 }
 
-                if (p.y < -10) this.handleDeath();
+                // Lower death threshold to -40
+                if (p.y < -40) this.handleDeath();
             },
 
             rotateWorld(dir) {
@@ -634,15 +628,24 @@
             },
 
             updateCamera(dt) {
-                this.worldRot += (this.targetRot - this.worldRot) * 8 * dt;
+                // Faster rotation speed (12x) to reduce snap perception
+                this.worldRot += (this.targetRot - this.worldRot) * 12 * dt;
                 this.tunnel.rotation.z = this.worldRot;
 
                 this.player.position.set(this.playerPos.x, -this.tunnelRadius + this.playerPos.y, this.playerPos.z);
                 
-                // Camera Position
+                // Camera Follow
                 this.camera.position.z = this.playerPos.z + 10;
-                this.camera.position.y = -3; 
-                this.camera.position.x = this.playerPos.x * 0.5;
+                
+                // FIX: Decouple Camera X from Player X to stop jitter/snapping
+                // Smoothly interpolate camera X towards 0 (Center)
+                this.camera.position.x = this.camera.position.x * 0.9; 
+
+                // Clamp camera Y so we can see player fall
+                // Stop following if player goes below -5
+                const camYTarget = Math.max(-5, this.playerPos.y + 2);
+                this.camera.position.y += (camYTarget - this.camera.position.y) * 0.1;
+
                 this.camera.lookAt(0, -5, this.playerPos.z - 20);
             },
 
@@ -651,10 +654,9 @@
                 audioSys.playSfx('die');
                 this.updateHud();
 
-                // Flash screen red
                 const dmg = document.getElementById('damage-overlay');
                 dmg.style.opacity = 0.5;
-                setTimeout(() => dmg.style.opacity = 0, 100);
+                setTimeout(() => dmg.style.opacity = 0, 150);
                 
                 if (this.lives <= 0) {
                     document.getElementById('final-score').innerText = "Distance: " + Math.floor(this.score) + "m";
@@ -663,8 +665,12 @@
                     audioSys.stopMusic();
                 } else {
                     this.velocity.set(0,0,0);
-                    this.playerPos.y = 10; // Respawn above
+                    // High respawn to give a moment of "reset"
+                    this.playerPos.y = 20; 
                     this.playerPos.x = 0;
+                    // Reset rotation to align
+                    this.worldRot = this.targetRot;
+                    this.tunnel.rotation.z = this.worldRot;
                 }
             },
             
@@ -684,11 +690,11 @@
             setTheme(val) {
                 this.themeMode = val;
                 if(val === 'NEON') {
-                    this.fixedTheme = { wall: 0x1a1a1a, edge: 0x00ffcc, bg: 0x050510 };
+                    this.fixedTheme = { wall: 0x222222, edge: 0x00ffcc, bg: 0x0a0a1a };
                 } else if(val === 'MAGMA') {
-                    this.fixedTheme = { wall: 0x221111, edge: 0xff3300, bg: 0x1a0505 };
+                    this.fixedTheme = { wall: 0x2a1111, edge: 0xff4444, bg: 0x1a0505 };
                 } else if(val === 'MATRIX') {
-                    this.fixedTheme = { wall: 0x001100, edge: 0x00ff00, bg: 0x000500 };
+                    this.fixedTheme = { wall: 0x112a11, edge: 0x44ff44, bg: 0x051a05 };
                 }
             },
 
