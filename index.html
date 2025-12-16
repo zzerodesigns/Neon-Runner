@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Neon Runner v0.3.8</title>
+    <title>Neon Runner v0.3.10b</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary: #00ffcc;
-            --bg: #1a0b2e; /* Significantly brighter purple background */
-            --panel: rgba(30, 15, 50, 0.95);
+            --bg: #050510; 
+            --panel: rgba(10, 10, 20, 0.95);
         }
-        body { margin: 0; overflow: hidden; background: #1a0b2e; font-family: 'Orbitron', sans-serif; user-select: none; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Orbitron', sans-serif; user-select: none; }
         canvas { display: block; }
         
         /* UI LAYOUT */
@@ -26,21 +26,21 @@
             z-index: 10;
         }
         .hud-item {
-            text-shadow: 0 0 15px var(--primary);
+            text-shadow: 0 0 10px rgba(255,255,255,0.5);
             color: white;
         }
-        #score-container { font-size: 36px; font-weight: 900; color: var(--primary); filter: drop-shadow(0 0 10px var(--primary)); }
+        #score-container { font-size: 36px; font-weight: 900; color: white; text-shadow: 0 0 15px var(--primary); }
         #lives-container { font-size: 32px; color: #ff3366; text-shadow: 0 0 15px #ff3366; }
         #fps-counter { font-size: 14px; color: #ccff00; margin-top: 5px; display: none; text-align: right; }
         
         #damage-overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(rgba(255, 0, 50, 0.5), transparent, rgba(255, 0, 50, 0.5));
+            background: linear-gradient(rgba(255, 0, 0, 0.5), transparent, rgba(255, 0, 0, 0.5));
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.1s;
-            mix-blend-mode: hard-light;
+            mix-blend-mode: overlay;
             z-index: 5;
         }
 
@@ -48,8 +48,8 @@
         .overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(20, 10, 35, 0.85);
-            backdrop-filter: blur(8px);
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -59,7 +59,9 @@
             opacity: 1;
             pointer-events: auto;
         }
+        /* CRITICAL FIX: display: none ensures focus is LOST */
         .overlay.hidden { 
+            display: none !important;
             opacity: 0; 
             pointer-events: none; 
         }
@@ -72,7 +74,7 @@
             -webkit-text-fill-color: transparent;
             text-transform: uppercase; 
             letter-spacing: 6px;
-            filter: drop-shadow(0 0 25px var(--primary));
+            filter: drop-shadow(0 0 20px var(--primary));
             text-align: center;
         }
         
@@ -81,27 +83,26 @@
             font-size: 16px;
             margin-bottom: 30px;
             letter-spacing: 3px;
-            text-shadow: 0 0 10px #0066ff;
         }
 
         .btn {
             margin: 12px;
             padding: 18px 50px;
             font-size: 22px;
-            background: rgba(0, 255, 204, 0.1);
+            background: transparent;
             color: var(--primary);
             border: 2px solid var(--primary);
             cursor: pointer;
             font-family: 'Orbitron', sans-serif;
             text-transform: uppercase;
             transition: all 0.2s;
-            clip-path: polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%);
             box-shadow: 0 0 15px rgba(0, 255, 204, 0.2);
+            clip-path: polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%);
         }
         .btn:hover {
             background: var(--primary);
             color: #000;
-            box-shadow: 0 0 40px var(--primary);
+            box-shadow: 0 0 30px var(--primary);
             transform: scale(1.05) translateY(-2px);
         }
 
@@ -116,10 +117,10 @@
             padding: 40px;
             z-index: 30;
             display: none;
-            box-shadow: 0 0 60px rgba(0, 255, 204, 0.3);
-            border-radius: 5px;
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            border-radius: 4px;
         }
-        #settings-modal h2 { color: var(--primary); margin-top: 0; text-align: center; font-size: 28px; text-shadow: 0 0 10px var(--primary); }
+        #settings-modal h2 { color: var(--primary); margin-top: 0; text-align: center; font-size: 28px; }
         .setting-row {
             display: flex; justify-content: space-between; align-items: center;
             margin-bottom: 20px;
@@ -128,9 +129,8 @@
         }
         input[type=range] { width: 180px; accent-color: var(--primary); cursor: pointer; }
         select { 
-            background: #201030; color: white; border: 1px solid #666; 
+            background: #222; color: white; border: 1px solid #666; 
             padding: 8px; font-family: inherit; font-size: 14px; 
-            box-shadow: 0 0 10px rgba(0,0,0,0.5);
         }
 
         .controls-hint {
@@ -143,11 +143,11 @@
             text-shadow: 0 0 5px rgba(0,0,0,0.5);
         }
         .key { 
-            border: 1px solid #00aaff; 
+            border: 1px solid #666; 
             padding: 5px 10px; 
             color: #fff; 
             margin-right: 8px; 
-            background: rgba(0, 100, 255, 0.3); 
+            background: rgba(255,255,255,0.1); 
             border-radius: 4px;
         }
 
@@ -171,12 +171,12 @@
     <!-- MAIN MENU -->
     <div id="main-menu" class="overlay">
         <h1>Neon Runner</h1>
-        <div class="version-text">v0.3.8</div>
+        <div class="version-text">v0.3.10b</div>
         <button class="btn" onclick="game.start()">Start Run</button>
-        <button class="btn" onclick="ui.openSettings()" style="font-size: 16px; padding: 12px 35px; opacity: 0.9">Settings</button>
+        <button class="btn" onclick="ui.openSettings()" style="font-size: 16px; padding: 12px 35px; opacity: 0.9; border-color: #aaa; color: #aaa;">Settings</button>
         
         <div class="controls-hint">
-            <div><span class="key">←</span> <span class="key">→</span> Snap Lane</div>
+            <div><span class="key">←</span> <span class="key">→</span> Change Lane</div>
             <div><span class="key">Space</span> Jump</div>
         </div>
     </div>
@@ -184,7 +184,7 @@
     <!-- PAUSE MENU -->
     <div id="pause-menu" class="overlay hidden">
         <h1>PAUSED</h1>
-        <div class="version-text">v0.3.8</div>
+        <div class="version-text">v0.3.10b</div>
         <button class="btn" onclick="game.togglePause()">Resume</button>
         <button class="btn" onclick="ui.openSettings()">Settings</button>
         <button class="btn" onclick="ui.toMenu()" style="border-color: #666; color: #ccc;">Quit</button>
@@ -214,15 +214,6 @@
             </select>
         </div>
         <div class="setting-row">
-            <span>Theme</span>
-            <select id="opt-theme" onchange="game.setTheme(this.value)">
-                <option value="DYNAMIC">Dynamic (Progressive)</option>
-                <option value="NEON">Neon Cyan</option>
-                <option value="MAGMA">Magma Red</option>
-                <option value="MATRIX">Matrix Green</option>
-            </select>
-        </div>
-        <div class="setting-row">
             <span>Show FPS</span>
             <input type="checkbox" onchange="ui.toggleFps(this.checked)">
         </div>
@@ -236,11 +227,11 @@
 
     <script>
         /**
-         * AUDIO SYSTEM - Provided Version
+         * AUDIO SYSTEM - FIXED: Buffer Length
          */
         const audioSys = {
             ctx: null, masterGain: null, isPlaying: false, step: 0, interval: null,
-            layers: {"base":true,"bass":false,"arp":true,"drums":true}, // Enabled bass layer
+            layers: {"base":true,"bass":false,"arp":true,"drums":true},
             tracks: [[110,110,220,165,110,220,165,130],[87,87,174,130,87,130,174,196],[130,130,196,146,130,196,261,246]],
             currentTrackIdx: 0, 
 
@@ -251,12 +242,12 @@
                     this.masterGain = this.ctx.createGain();
                     this.masterGain.connect(this.ctx.destination);
                     this.masterGain.gain.value = 0.4;
-                } catch(e) { console.error(e); }
+                } catch(e) { console.error("Audio init error", e); }
             },
 
             startMusic() {
                 if (!this.ctx) this.init();
-                if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+                if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume().catch(e => console.log(e));
                 if (this.isPlaying) return;
                 this.step = 0;
                 this.interval = setInterval(() => this.tick(), 200); 
@@ -337,7 +328,10 @@
             },
 
             playNoise(t, freqFilter, vol, dur) {
-                const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * dur, this.ctx.sampleRate);
+                // BUGFIX: Ensure buffer size is an integer.
+                const size = Math.floor(this.ctx.sampleRate * dur);
+                if (size <= 0) return;
+                const buf = this.ctx.createBuffer(1, size, this.ctx.sampleRate);
                 const data = buf.getChannelData(0);
                 for(let i=0; i<data.length; i++) data[i] = Math.random() * 2 - 1;
                 const src = this.ctx.createBufferSource(); src.buffer = buf;
@@ -348,9 +342,8 @@
                 src.start(t);
             },
 
-            // Added support for Game Logic interactions
             setMusicVol(v) { if (this.masterGain) this.masterGain.gain.value = v / 100; },
-            setSfxVol(v) { /* Shared gain in this engine, simplified */ },
+            setSfxVol(v) { }, 
 
             playSfx(type) {
                 if(!this.ctx) return;
@@ -360,20 +353,23 @@
                 osc.connect(gain); gain.connect(this.masterGain);
 
                 if(type === 'jump') {
+                    osc.type = 'sine';
                     osc.frequency.setValueAtTime(300, t);
-                    osc.frequency.linearRampToValueAtTime(500, t + 0.1);
-                    gain.gain.setValueAtTime(0.2, t);
-                    gain.gain.linearRampToValueAtTime(0, t + 0.1);
-                    osc.start(t); osc.stop(t+0.1);
+                    osc.frequency.linearRampToValueAtTime(600, t + 0.15);
+                    gain.gain.setValueAtTime(0.3, t);
+                    gain.gain.linearRampToValueAtTime(0, t + 0.15);
+                    osc.start(t); osc.stop(t+0.15);
                 } else if(type === 'die') {
                     osc.type = 'sawtooth';
                     osc.frequency.setValueAtTime(150, t);
-                    osc.frequency.exponentialRampToValueAtTime(50, t + 0.3);
-                    gain.gain.setValueAtTime(0.4, t);
-                    gain.gain.linearRampToValueAtTime(0, t + 0.3);
-                    osc.start(t); osc.stop(t+0.3);
+                    osc.frequency.exponentialRampToValueAtTime(30, t + 0.4);
+                    gain.gain.setValueAtTime(0.5, t);
+                    gain.gain.linearRampToValueAtTime(0, t + 0.4);
+                    osc.start(t); osc.stop(t+0.4);
                 } else if(type === 'life') {
-                    osc.frequency.setValueAtTime(800, t);
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, t);
+                    osc.frequency.setValueAtTime(1200, t + 0.1);
                     gain.gain.setValueAtTime(0.2, t);
                     gain.gain.linearRampToValueAtTime(0, t + 0.2);
                     osc.start(t); osc.stop(t+0.2);
@@ -382,21 +378,10 @@
         };
 
         /**
-         * STAGE CONFIGURATION - Brighter, Vibrant Colors
-         */
-        const STAGES = [
-            { score: 0,    wall: 0xaa22ff, edge: 0x00ffff, bg: 0x1a0b2e }, // Purple/Cyan
-            { score: 500,  wall: 0xff3366, edge: 0xffdd00, bg: 0x2e0b1a }, // Pink/Yellow
-            { score: 1000, wall: 0x22ffaa, edge: 0x0055ff, bg: 0x0b2e1a }, // Lime/Blue
-            { score: 1500, wall: 0x00aaff, edge: 0xff00ff, bg: 0x0b1a2e }, // Blue/Magenta
-            { score: 2000, wall: 0xffaa00, edge: 0x00ffaa, bg: 0x2e1a0b }  // Orange/Cyan
-        ];
-
-        /**
          * GAME ENGINE
          */
         const game = {
-            sides: 16, // 16-Sided Cylinder
+            sides: 16, 
             tunnelRadius: 10,
             segmentLength: 5,
             renderDist: 26,
@@ -415,78 +400,90 @@
             velocity: new THREE.Vector3(0, 0, 0),
             faceIndex: 0, worldRot: 0, targetRot: 0,
             
-            keys: { jump: false }, // Left/Right removed from poll state, used as triggers
+            keys: { jump: false },
             difficulty: 'NORMAL', holeProb: 0.15,
-            themeMode: 'DYNAMIC',
-            fixedTheme: STAGES[0],
 
             // Reused Geometry
             geoWall: null,
 
             init() {
-                this.scene = new THREE.Scene();
-                this.scene.background = new THREE.Color(STAGES[0].bg);
-                this.scene.fog = new THREE.Fog(STAGES[0].bg, 20, 80); 
+                try {
+                    this.scene = new THREE.Scene();
+                    // FIX: Initialize background IMMEDIATELY so lerp() doesn't fail in addSegment()
+                    this.scene.background = new THREE.Color(0x050510);
+                    this.scene.fog = new THREE.Fog(0x000000, 20, 80); 
 
-                this.camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 200);
-                
-                this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-                this.renderer.setSize(window.innerWidth, window.innerHeight);
-                this.renderer.shadowMap.enabled = true;
-                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-                document.body.appendChild(this.renderer.domElement);
+                    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 200);
+                    
+                    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+                    this.renderer.shadowMap.enabled = true;
+                    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
+                    document.body.appendChild(this.renderer.domElement);
 
-                // --- BRIGHT LIGHTING ---
-                const hemiLight = new THREE.HemisphereLight(0xffffff, 0x555555, 0.8); 
-                this.scene.add(hemiLight);
+                    // --- LIGHTING ---
+                    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x111111, 0.8); 
+                    this.scene.add(hemiLight);
 
-                const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
-                dirLight.position.set(5, 20, 10);
-                dirLight.castShadow = true;
-                this.scene.add(dirLight);
+                    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                    dirLight.position.set(0, 20, 5);
+                    dirLight.castShadow = true;
+                    // FIX: Removed manual bias that caused artifacts.
+                    dirLight.shadow.mapSize.width = 1024;
+                    dirLight.shadow.mapSize.height = 1024;
+                    this.scene.add(dirLight);
 
-                // Tunnel Group
-                this.tunnel = new THREE.Group();
-                this.scene.add(this.tunnel);
+                    // Tunnel Group
+                    this.tunnel = new THREE.Group();
+                    this.scene.add(this.tunnel);
 
-                // Player
-                this.player = new THREE.Group();
-                const bodyGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
-                const bodyMat = new THREE.MeshStandardMaterial({ 
-                    color: 0x333333, 
-                    roughness: 0.2, 
-                    emissive: 0x00ffcc,
-                    emissiveIntensity: 0.8 
-                });
-                const mesh = new THREE.Mesh(bodyGeo, bodyMat);
-                mesh.castShadow = true;
-                this.player.add(mesh);
-                this.scene.add(this.player);
+                    // Player
+                    this.player = new THREE.Group();
+                    const bodyGeo = new THREE.BoxGeometry(0.7, 0.7, 0.7);
+                    const bodyMat = new THREE.MeshStandardMaterial({ 
+                        color: 0x222222, 
+                        roughness: 0.2, 
+                        emissive: 0x00ffcc,
+                        emissiveIntensity: 0.8 
+                    });
+                    const mesh = new THREE.Mesh(bodyGeo, bodyMat);
+                    mesh.castShadow = true;
+                    this.player.add(mesh);
+                    this.scene.add(this.player);
 
-                // Wall Geometry
-                const wallWidth = 2 * this.tunnelRadius * Math.tan(Math.PI / this.sides);
-                this.geoWall = new THREE.BoxGeometry(wallWidth + 0.1, 0.5, this.segmentLength); 
-                
-                window.addEventListener('resize', () => this.onResize());
-                window.addEventListener('keydown', (e) => this.onKey(e, true));
-                window.addEventListener('keyup', (e) => this.onKey(e, false));
-                
-                this.reset(true);
-                this.lastTime = performance.now();
-                requestAnimationFrame((t) => this.loop(t));
+                    // Wall Geometry
+                    const wallWidth = 2 * this.tunnelRadius * Math.tan(Math.PI / this.sides);
+                    this.geoWall = new THREE.BoxGeometry(wallWidth + 0.1, 0.5, this.segmentLength); 
+                    
+                    window.addEventListener('resize', () => this.onResize());
+                    window.addEventListener('keydown', (e) => this.onKey(e, true));
+                    window.addEventListener('keyup', (e) => this.onKey(e, false));
+                    
+                    this.reset(true);
+                    this.lastTime = performance.now();
+                    requestAnimationFrame((t) => this.loop(t));
+                } catch(e) { console.error("Game init error", e); }
             },
 
             start() {
+                // FIX: Prevents loop if button is somehow still focused/triggered
+                if (this.isPlaying) return; 
+
+                if (document.activeElement) document.activeElement.blur();
                 document.getElementById('main-menu').classList.add('hidden');
                 document.getElementById('game-over').classList.add('hidden');
                 document.getElementById('pause-menu').classList.add('hidden');
+                
                 this.reset(false);
                 this.isPlaying = true;
                 this.isPaused = false;
                 audioSys.startMusic();
             },
 
-            restart() { this.start(); },
+            restart() { 
+                this.isPlaying = false; // Reset state for guard
+                this.start(); 
+            },
             
             togglePause() {
                 if (!this.isPlaying) return;
@@ -518,37 +515,47 @@
                 this.updateCamera(0.016);
             },
             
-            getCurrentVisuals() {
-                if (this.themeMode === 'DYNAMIC') {
-                    for (let i = STAGES.length - 1; i >= 0; i--) {
-                        if (this.score >= STAGES[i].score) return STAGES[i];
-                    }
-                    return STAGES[0];
-                } else {
-                    return this.fixedTheme;
-                }
+            getDynamicColors() {
+                // Vibrant Cyberpunk Spectrum
+                const t = this.score * 0.0001; // Slower change
+                const hue = (t % 1); 
+                
+                // Keep saturation high, brightness moderate
+                const cWall = new THREE.Color().setHSL(hue, 0.9, 0.4);
+                // Edge contrast color
+                const cEdge = new THREE.Color().setHSL((hue + 0.5) % 1, 1.0, 0.6);
+                // Dark tinted background
+                const cBg = new THREE.Color().setHSL(hue, 0.8, 0.05);
+                
+                return { wall: cWall, edge: cEdge, bg: cBg };
             },
 
             addSegment(z, safe) {
-                const style = this.getCurrentVisuals();
+                const colors = this.getDynamicColors();
                 
-                // Color Transition
-                const targetBg = new THREE.Color(style.bg);
-                this.scene.background.lerp(targetBg, 0.05);
-                this.scene.fog.color.lerp(targetBg, 0.05);
+                // FIX: Guard against scene.background being null, though init() fix handles this
+                if (this.scene.background) {
+                    this.scene.background.lerp(colors.bg, 0.05);
+                }
+                if (this.scene.fog) {
+                    this.scene.fog.color.lerp(colors.bg, 0.05);
+                }
                 
-                const hex = '#' + new THREE.Color(style.edge).getHexString();
-                if(Math.random() < 0.1) document.documentElement.style.setProperty('--primary', hex);
+                if(Math.random() < 0.05) {
+                    const hex = '#' + colors.edge.getHexString();
+                    document.documentElement.style.setProperty('--primary', hex);
+                    this.player.children[0].material.emissive.set(colors.edge);
+                }
 
                 const group = new THREE.Group();
                 group.position.z = -z;
                 
                 const mat = new THREE.MeshStandardMaterial({ 
-                    color: style.wall, 
+                    color: colors.wall, 
                     roughness: 0.3, 
-                    metalness: 0.1,
-                    emissive: style.wall,
-                    emissiveIntensity: 0.4
+                    metalness: 0.2,
+                    emissive: colors.wall,
+                    emissiveIntensity: 0.15
                 });
 
                 const segData = { z: -z, walls: [] };
@@ -569,8 +576,8 @@
                     wall.position.y = -this.tunnelRadius * Math.cos(angle);
                     wall.rotation.z = angle;
                     
-                    wall.castShadow = true;
                     wall.receiveShadow = true;
+                    wall.castShadow = true;
                     group.add(wall);
                 }
                 
@@ -626,12 +633,9 @@
                 
                 p.z -= this.speed * dt;
                 
-                // Note: p.x is NO LONGER UPDATED (Snap movement)
-
                 v.y -= this.gravity * dt;
                 p.y += v.y * dt;
 
-                // Detect current segment
                 let currentSeg = null;
                 for(let i=0; i<this.segments.length; i++) {
                     const s = this.segments[i];
@@ -641,13 +645,11 @@
                     }
                 }
 
-                // STRICT Floor collision logic
                 if (currentSeg) {
                     const hasFloor = currentSeg.walls[this.faceIndex];
                     if (hasFloor) {
-                        // Only snap if we are VERY close to surface.
-                        // If we are falling fast or deep (y < -0.1), NO SNAP.
-                        if (p.y < 0 && p.y > -0.5 && v.y <= 0) { 
+                        // Floor snap with jump tolerance
+                        if (p.y < 0 && p.y > -0.15 && v.y <= 0) { 
                             p.y = 0;
                             v.y = 0;
                             if (this.keys.jump) {
@@ -656,69 +658,44 @@
                             }
                         }
                     }
-                    // If !hasFloor, we do nothing. Gravity takes p.y down.
                 }
 
-                // Death Check - IMMEDIATE
                 if (p.y < -2.0) this.handleDeath();
             },
 
             actionRotate(dir) {
-                // Prevent rotation if falling (Strict Death Logic)
-                // If you are in the air due to a jump (y > 0), you can rotate.
-                // If you are falling into a hole (y < 0), you cannot save yourself.
                 if (this.playerPos.y < -0.1) return;
-
                 this.faceIndex = (this.faceIndex + dir + this.sides) % this.sides;
                 const theta = (Math.PI * 2) / this.sides;
                 this.targetRot -= dir * theta;
             },
 
             renderPlayerPosition() {
-                const theta = (Math.PI * 2) / this.sides;
-                const faceAngle = this.faceIndex * theta;
-                
-                // p.x is always 0 in this snap mode
-                const localX = 0; 
-                
-                // Account for thickness
+                // FIXED X = 0. Tunnel rotates.
                 const surfaceY = -this.tunnelRadius + 0.25; 
-                const playerCenterY = surfaceY + 0.3 + this.playerPos.y; 
+                // Player box 0.7 -> half is 0.35
+                const playerCenterY = surfaceY + 0.35 + this.playerPos.y; 
                 
-                const cosA = Math.cos(faceAngle);
-                const sinA = Math.sin(faceAngle);
-                
-                const rotX = localX * cosA - playerCenterY * sinA;
-                const rotY = localX * sinA + playerCenterY * cosA;
-                
-                const wRot = this.tunnel.rotation.z;
-                const cosW = Math.cos(wRot);
-                const sinW = Math.sin(wRot);
-                
-                const finalX = rotX * cosW - rotY * sinW;
-                const finalY = rotX * sinW + rotY * cosW;
-                
-                this.player.position.set(finalX, finalY, this.playerPos.z);
-                this.player.rotation.z = faceAngle + wRot;
+                this.player.position.set(0, playerCenterY, this.playerPos.z);
+                this.player.rotation.z = 0; 
             },
 
             updateCamera(dt) {
-                // Faster rotation smoothing for snap feel
-                this.worldRot += (this.targetRot - this.worldRot) * 15 * dt;
+                this.worldRot += (this.targetRot - this.worldRot) * 12 * dt;
                 this.tunnel.rotation.z = this.worldRot;
 
                 const p = this.player.position; 
                 
-                this.camera.position.z = p.z + 10;
-                // Follow X tightly for snap feel
-                this.camera.position.x += (p.x * 0.8 - this.camera.position.x) * 0.2;
-
+                // CLOSER CAMERA
+                this.camera.position.z = p.z + 6; 
+                this.camera.position.x = 0; 
+                
                 if (this.playerPos.y > -5) {
-                    const targetCamY = Math.max(-8, p.y + 3); 
+                    const targetCamY = Math.max(-5, p.y + 2); 
                     this.camera.position.y += (targetCamY - this.camera.position.y) * 0.1;
                 }
                 
-                this.camera.lookAt(0, this.camera.position.y - 2, p.z - 20);
+                this.camera.lookAt(0, this.camera.position.y - 1, p.z - 20);
             },
 
             handleDeath() {
@@ -737,10 +714,11 @@
                     audioSys.stopMusic();
                 } else {
                     this.velocity.set(0,0,0);
-                    this.playerPos.y = 15; // Drop from sky
+                    this.playerPos.y = 0; 
                     this.playerPos.x = 0;
                     this.worldRot = this.targetRot; 
-                    this.camera.position.y = 10;
+                    // Reset camera immediately
+                    this.camera.position.set(0, 2, this.playerPos.z + 6);
                 }
             },
             
@@ -757,17 +735,6 @@
                 if(val === 'EXTREME') { this.speed = 32; this.holeProb = 0.4; }
             },
 
-            setTheme(val) {
-                this.themeMode = val;
-                if(val === 'NEON') {
-                    this.fixedTheme = STAGES[0];
-                } else if(val === 'MAGMA') {
-                    this.fixedTheme = STAGES[1];
-                } else if(val === 'MATRIX') {
-                    this.fixedTheme = STAGES[2];
-                }
-            },
-
             onResize() {
                 this.camera.aspect = window.innerWidth / window.innerHeight;
                 this.camera.updateProjectionMatrix();
@@ -777,7 +744,9 @@
             onKey(e, down) {
                 if(e.code === 'Escape' && down) this.togglePause();
                 
-                // SNAP LANE MOVEMENT
+                // FIX: Prevent space scrolling/clicking (redundant safety)
+                if (e.code === 'Space') e.preventDefault(); 
+                
                 if (down) {
                     if(e.code === 'ArrowLeft' || e.code === 'KeyA') this.actionRotate(-1);
                     if(e.code === 'ArrowRight' || e.code === 'KeyD') this.actionRotate(1);
@@ -804,6 +773,7 @@
         };
 
         game.init();
+        // init Audio separately to catch context errors gracefully
         audioSys.init();
 
     </script>
